@@ -1,0 +1,3496 @@
+if shared and rawget(shared, "SolyankaCleanup") then
+    pcall(shared.SolyankaCleanup)
+end
+
+local LoadTick = os.clock()
+local CurrentSessionToken = tostring(LoadTick)
+
+pcall(function()
+    shared.SolyankaSessionToken = CurrentSessionToken
+end)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+
+local Player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local Connections = {}
+local function SafeConnect(signal, callback)
+    local conn = signal:Connect(callback)
+    table.insert(Connections, conn)
+    return conn
+end
+
+local LPH_NO_VIRTUALIZE = LPH_NO_VIRTUALIZE or function(f) return f end
+local mathclamp = math.clamp
+local _IsKeyDown = function(uis, key)
+    return uis:IsKeyDown(key)
+end
+local cheat = rawget(shared, "cheat") or _G.cheat or {
+    utility = {
+        anti_trace = function() end
+    }
+}
+
+local FontMapping = {
+    ["UI"] = 0,
+    ["System"] = 1,
+    ["Plex"] = 2,
+    ["Monospace"] = 3
+}
+
+local ESP = {
+    settings = {
+        enabled = false,
+        nameEnabled = false,
+        distanceEnabled = false,
+        weaponEnabled = false,
+        weaponImageEnabled = false,
+        armorImageEnabled = false, 
+        chamsEnabled = false,
+        renderDistance = 1000,
+        chamsRenderDistance = 250, 
+        font = 2,
+        nameColor = Color3.fromRGB(255, 255, 255),
+        distColor = Color3.fromRGB(0, 220, 255),
+        weapColor = Color3.fromRGB(255, 215, 0),
+        armorColor = Color3.fromRGB(0, 191, 255),
+        chamsColor = Color3.fromRGB(0, 220, 255), 
+        chamsTransparency = 0.50, 
+        sleepCheck = false,
+        teamCheck = false,
+        aiCheck = false,
+        
+        handChamsEnabled = false,
+        handChamsColor = Color3.fromRGB(0, 255, 255),
+        handChamsMaterial = "ForceField",
+        handChamsTransparency = 0.5,
+
+        weaponChamsEnabled = false,
+        weaponChamsColor = Color3.fromRGB(255, 0, 255),
+        weaponChamsMaterial = "ForceField",
+        weaponChamsTransparency = 0.5,
+        
+        oreEnabled = false,
+        oreRenderDistance = 1000,
+        oreStoneEnabled = true,
+        oreIronEnabled = true,
+        oreNitrateEnabled = true,
+        oreStoneColor = Color3.fromRGB(150, 150, 150),
+        oreIronColor = Color3.fromRGB(218, 165, 32),
+        oreNitrateColor = Color3.fromRGB(240, 240, 240),
+
+        lootEnabled = false,
+        lootRenderDistance = 1000,
+        lootVendingEnabled = true,
+        lootSafeEnabled = true,
+        lootBoxEnabled = true,
+        lootCrateEnabled = true,
+        lootBarrelEnabled = true,
+        lootPrimEnabled = true,
+        lootGasEnabled = true,
+        lootMilitaryEnabled = true,
+        lootBackpackEnabled = true,
+        
+        lootVendingColor = Color3.fromRGB(0, 255, 255),
+        lootSafeColor = Color3.fromRGB(255, 215, 0),
+        lootBoxColor = Color3.fromRGB(210, 180, 140),
+        lootCrateColor = Color3.fromRGB(160, 82, 45),
+        lootBarrelColor = Color3.fromRGB(255, 69, 0),
+        lootPrimColor = Color3.fromRGB(0, 255, 127),
+        lootGasColor = Color3.fromRGB(255, 75, 75),
+        lootMilitaryColor = Color3.fromRGB(75, 115, 65),
+        lootBackpackColor = Color3.fromRGB(165, 113, 78)
+    },
+    cache = {
+        boxes = setmetatable({}, {__mode = "k"}),
+        sleep = setmetatable({}, {__mode = "k"}),
+        player = setmetatable({}, {__mode = "k"}),
+        weapon = setmetatable({}, {__mode = "k"}),
+        weaponTime = setmetatable({}, {__mode = "k"}),
+        chams = setmetatable({}, {__mode = "k"}), 
+        images = {} 
+    },
+    oreCache = setmetatable({}, {__mode = "k"}),
+    lootCache = setmetatable({}, {__mode = "k"}),
+    const = { 
+        V3_UP = Vector3.new(0, 2.8, 0), 
+        V3_DN = Vector3.new(0, 3.0, 0) 
+    }
+}
+
+local AimbotSettings = {
+    Enabled = false,
+    Keybind = Enum.UserInputType.MouseButton2,
+    TargetPart = "Head",
+    Smoothness = 2,
+    AimRadius = 1000,
+    
+    FovEnabled = false,
+    FovRadius = 150,
+    FovColor = Color3.fromRGB(255, 0, 0),
+    
+    SleepCheck = false,
+    TeamCheck = false,
+    AiCheck = false,
+    WallCheck = false,
+
+    PredictionEnabled = false,
+    PredictionScaleUp = 0.5,
+    PredX = 0,
+    PredY = 0
+}
+
+local HitboxSettings = {
+    Enabled = false,
+    TargetPart = "Head", 
+    SizeX = 4,
+    SizeY = 4,
+    SizeZ = 4,
+    Transparency = 0.5,
+    Color = Color3.fromRGB(255, 0, 0),
+    CanCollide = false,
+    MixSpeed = 1,
+    
+    SleepCheck = false,
+    TeamCheck = false,
+    AiCheck = false
+}
+
+local movement = {
+    enabled = false,
+    speed = 50,
+    bhop_enabled = false,
+    bhop_duration = 0.3,
+    bhop_height = 10,
+    bhop_max_height = 15,
+    forcesprint = false
+}
+
+local niga = 50
+local wtf = 0
+local start_y = 0               
+local is_jumping = false        
+
+local SkyboxSettings = {
+    Enabled = false,
+    Selected = "Night"
+}
+
+local SkyboxPresets = {
+    ["Night"] = { 
+        CelestialBodiesShown = true,
+        MoonAngularSize = 11,
+        MoonTextureId = "rbxasset://sky/moon.jpg",
+        SkyboxBk = "http://www.roblox.com/asset/?id=5346760450",
+        SkyboxDn = "http://www.roblox.com/asset/?id=5346760689",
+        SkyboxFt = "http://www.roblox.com/asset/?id=5346760919",
+        SkyboxLf = "http://www.roblox.com/asset/?id=5346761102",
+        SkyboxRt = "http://www.roblox.com/asset/?id=5346761335",
+        SkyboxUp = "http://www.roblox.com/asset/?id=5346761509",
+        StarCount = 3000,
+        SunAngularSize = 10,
+        SunTextureId = "rbxasset://sky/moon.jpg"
+    },
+    ["Nebula Space"] = { 
+        CelestialBodiesShown = false,
+        MoonAngularSize = 0,
+        MoonTextureId = "rbxassetid://6444320592",
+        SkyboxBk = "rbxassetid://129876530632297",
+        SkyboxDn = "rbxassetid://108406529909981",
+        SkyboxFt = "rbxassetid://104400530594543",
+        SkyboxLf = "rbxassetid://73372229972523",
+        SkyboxRt = "rbxassetid://87408857415924",
+        SkyboxUp = "rbxassetid://137817405681365",
+        StarCount = 3000,
+        SunAngularSize = 0,
+        SunTextureId = "rbxassetid://6196665106"
+    },
+    ["Rainy Sky"] = { 
+        CelestialBodiesShown = true,
+        MoonAngularSize = 11,
+        MoonTextureId = "rbxasset://sky/moon.jpg",
+        SkyboxBk = "rbxassetid://1666456837",
+        SkyboxDn = "rbxassetid://1666455881",
+        SkyboxFt = "rbxassetid://1666457447",
+        SkyboxLf = "rbxassetid://1666455318",
+        SkyboxRt = "rbxassetid://1666456385",
+        SkyboxUp = "rbxassetid://1666458034",
+        StarCount = 3000,
+        SunAngularSize = 0,
+        SunTextureId = "rbxasset://sky/sun.jpg"
+    },
+    ["Cosmic Stars"] = { 
+        CelestialBodiesShown = false,
+        MoonAngularSize = 11,
+        MoonTextureId = "rbxasset://sky/moon.jpg",
+        SkyboxBk = "rbxassetid://393845394",
+        SkyboxDn = "rbxassetid://393845204",
+        SkyboxFt = "rbxassetid://393845629",
+        SkyboxLf = "rbxassetid://393845750",
+        SkyboxRt = "rbxassetid://393845533",
+        SkyboxUp = "rbxassetid://393845287",
+        StarCount = 0,
+        SunAngularSize = 21,
+        SunTextureId = "rbxasset://sky/sun.jpg"
+    },
+    ["Red Clouds"] = { 
+        CelestialBodiesShown = true,
+        MoonAngularSize = 11,
+        MoonTextureId = "rbxassetid://6444320592",
+        SkyboxBk = "rbxassetid://71607054149497",
+        SkyboxDn = "rbxassetid://78865378050055",
+        SkyboxFt = "rbxassetid://104560113223878",
+        SkyboxLf = "rbxassetid://8039533390107",
+        SkyboxRt = "rbxassetid://87570388049514",
+        SkyboxUp = "rbxassetid://79190209626172",
+        StarCount = 3000,
+        SunAngularSize = 11,
+        SunTextureId = "rbxassetid://6196665106"
+    }
+}
+
+local StealthLighting = {
+    Enabled = false,
+    Brightness = 0,   
+    Contrast = 0,     
+    Saturation = 0,   
+    Ambient = Color3.fromRGB(255, 255, 255) 
+}
+
+local FreecamSettings = {
+    Enabled = false,
+    Speed = 2.0,            
+    Sensitivity = 1.0,      
+    SprintMultiplier = 2.5  
+}
+
+local XraySettings = {
+    Enabled = false,
+    Transparency = 0.75,
+    Cache = {} 
+}
+
+local freecamActive = false
+local freecamPos = Vector3.new(0, 0, 0)
+local freecamYaw = 0
+local freecamPitch = 0
+local freecamSensitivity = 1.0
+local freecamFlySpeed = 2.0
+local freecamSprintMultiplier = 2.5
+
+local WeaponPredictionStats = {
+    Bow = { side = 1.1, up = 3.0 }, 
+    CrossBow = { side = 0.55, up = 1.55 },
+    AR15 = { side = 0.10, up = 0.025 }, 
+    M4A1 = { side = 0.20, up = 0 },
+    SCAR = { side = 0.25, up = 0.40 }, 
+    SVD = { side = 0.30, up = 0.1 },
+    C9 = { side = 0.35, up = 1.0 }, 
+    UZI = { side = 0.35, up = 0 },
+    USP9 = { side = 0.35, up = 1.0 }, 
+    Blunderbuss = { side = 1.0, up = 0 },
+    PumpShotgun = { side = 1.0, up = 0 }, 
+    EnergyRifle = { side = 0.5, up = 0.05 },
+    GaussRifle = { side = 0.25, up = 0.1 }, 
+    HMAR = { side = 0.35, up = 2.0 },
+    LeverActionRifle = { side = 0.35, up = 0.1 }, 
+    PipePistol = { side = 1.0, up = 1.0 },
+    PipeSMG = { side = 5.0, up = 0.50 }, 
+    Magnum = { side = 0.65, up = 1.0 },
+}
+
+local CleanWeaponNames = {
+    Bow = "Bow",
+    CrossBow = "Crossbow",
+    AR15 = "AR-15",
+    M4A1 = "M4A1",
+    SCAR = "SCAR",
+    SVD = "SVD",
+    C9 = "C9",
+    UZI = "Uzi",
+    USP9 = "USP-9",
+    Blunderbuss = "Blunderbuss",
+    PumpShotgun = "Pump Shotgun",
+    EnergyRifle = "Energy Rifle",
+    GaussRifle = "Gauss Rifle",
+    HMAR = "HMAR",
+    LeverActionRifle = "Lever Action",
+    PipePistol = "Pipe Pistol",
+    PipeSMG = "Pipe SMG",
+    Magnum = "Magnum"
+}
+
+local function GetCleanWeaponName(rawName)
+    return CleanWeaponNames[rawName] or rawName
+end
+
+local PartSets = {
+    Bow = {"Arrow","Fabric","Meshes/Bow"},
+    CrossBow = {"Arrow","BackMetal","Body","FrontNails","Release","SpringSteel","String","Wheel","Slide"},
+    AR15 = {"AnimSaves","Barrel","Body","Bolt","ChargingHandle","Decor","Grip","Mag","Rails","Stock","Muzzle"},
+    M4A1 = {"DefaultSight","Body","Bolt","ChargeHandle","Grip","Mag","Metal","mbrk","Muzzle"},
+    SCAR = {"DefaultSight","Barrel","Body","ChargingHandle","Decals","Mag","Rails","ShoulderPad","Stock"},
+    SVD = {"DefaultSight","Body","Bolt","Magazine","Magazine2","Metal2","Wood"},
+    C9 = {"Barrel","Body","Bolt","Decor","Grip","LowerSlide","Mag","Sight1","Sight2","UpperSlide","Muzzle"},
+    UZI = {"DefaultSight","Body","Body2","Bolt","ChargingHandle","Decor","Grip","Mag","Stock","Muzzle"},
+    USP9 = {"Body","Mag","Slide","Muzzle"},
+    Blunderbuss = {"Body","Tube","thing","Muzzle"},
+    PumpShotgun = {"Barrel","Body","MainMetal","RearSight","Shell","Slider","Muzzle"},
+    EnergyRifle = {"DefaultSight","FrontCover","Glowing","Grip","Mag","Metal","Metal2","RearCover","RearDecor","Screws","Tubes"},
+    GaussRifle = {"DefaultSight","Barrel","Body","CoilHolders","Coils","Decals1","Decals2","Grip","Housing","Mag","StockBack"},
+    HMAR = {"DefaultSight","Body","Bolt","Bolts","Cover","Mag","Rails","Spring","Stock","Wood","Muzzle"},
+    LeverActionRifle = {"9mm","DefaultSight","Body","Brass","Hammer","Lever","Metal","Thing","Wood","Muzzle"},
+    PipePistol = {"DefaultSight","Body","Bolt","Mag","Muzzle"},
+    PipeSMG = {"DefaultSight","Barrel","Body","Bolt","Flap","Grip","Mag","Stock","Muzzle"},
+    Magnum = {"Cylinder","Decor","EjectRod","EjectRodDecal","Frame","Grip"},
+}
+
+local LocalWeaponStats = {
+    Name = "None",
+    side = 0,
+    up = 0,
+    hasWeapon = false
+}
+
+local activeChams = {}
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "ESPHolder"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.IgnoreGuiInset = true
+gui.Parent = Player:WaitForChild("PlayerGui")
+
+SafeConnect(Player.CharacterAdded, function()
+    task.wait(0.5) 
+    if not gui or not gui.Parent then 
+        gui = Instance.new("ScreenGui") 
+        gui.Name = "ESPHolder" 
+        gui.Parent = Player:WaitForChild("PlayerGui") 
+    end
+end)
+
+local OriginalSky = nil
+local CustomSky = nil
+
+local function BackupOriginalSky()
+    if not OriginalSky then
+        local currentSky = Lighting:FindFirstChildOfClass("Sky")
+        if currentSky then
+            OriginalSky = currentSky:Clone()
+            OriginalSky.Name = "OriginalSky_Backup"
+        end
+    end
+end
+
+local function RestoreOriginalSky()
+    if CustomSky then
+        pcall(function() CustomSky:Destroy() end)
+        CustomSky = nil
+    end
+    
+    for _, child in ipairs(Lighting:GetChildren()) do
+        if child:IsA("Sky") and child.Name == "Solyanka_CustomSky" then
+            pcall(function() child:Destroy() end)
+        end
+    end
+
+    if OriginalSky then
+        local existingSky = Lighting:FindFirstChildOfClass("Sky")
+        if existingSky then
+            pcall(function() existingSky:Destroy() end)
+        end
+        local restored = OriginalSky:Clone()
+        restored.Name = "Sky"
+        restored.Parent = Lighting
+    end
+end
+
+local function ApplySkybox(name)
+    BackupOriginalSky()
+    
+    local preset = SkyboxPresets[name]
+    if not preset then return end
+
+    local existingSky = Lighting:FindFirstChildOfClass("Sky")
+    if existingSky then
+        pcall(function() existingSky:Destroy() end)
+    end
+
+    CustomSky = Instance.new("Sky")
+    CustomSky.Name = "Solyanka_CustomSky"
+    
+    for prop, val in pairs(preset) do
+        pcall(function()
+            CustomSky[prop] = val
+        end)
+    end
+    
+    CustomSky.Parent = Lighting
+end
+
+local function UpdateSkyboxState()
+    if SkyboxSettings.Enabled then
+        ApplySkybox(SkyboxSettings.Selected)
+    else
+        RestoreOriginalSky()
+    end
+end
+
+local function GetStealthCorrection()
+    local cam = workspace.CurrentCamera
+    if not cam then return nil end
+    
+    local effect = cam:FindFirstChild("Solyanka_StealthCorrection")
+    if not effect then
+        effect = Instance.new("ColorCorrectionEffect")
+        effect.Name = "Solyanka_StealthCorrection"
+        effect.Parent = cam
+    end
+    return effect
+end
+
+local function UpdateStealthLighting()
+    local effect = GetStealthCorrection()
+    if not effect then return end
+    
+    if StealthLighting.Enabled then
+        effect.Enabled = true
+        effect.Brightness = StealthLighting.Brightness
+        effect.Contrast = StealthLighting.Contrast
+        effect.Saturation = StealthLighting.Saturation
+        effect.TintColor = StealthLighting.Ambient
+    else
+        effect.Enabled = false
+    end
+end
+
+SafeConnect(workspace:GetPropertyChangedSignal("CurrentCamera"), function()
+    task.wait(0.1)
+    UpdateStealthLighting()
+end)
+
+local function getSafePath(root, pathString)
+    local current = root
+    for segment in string.gmatch(pathString, "[^/]+") do
+        if not current then return nil end
+        current = current:FindFirstChild(segment)
+    end
+    return current
+end
+
+local function isLocalModel(model)
+    if not model then return false end
+    if model == Player.Character then return true end
+    if model.Name == "LocalCharacter" then return true end
+    local ignoreFolder = getSafePath(workspace, "Const/Ignore")
+    if ignoreFolder and ignoreFolder:FindFirstChild("LocalCharacter") == model then 
+        return true 
+    end
+    return false
+end
+
+local function toggleFreecam()
+    return LPH_NO_VIRTUALIZE(function()
+        cheat.utility.anti_trace()
+        freecamActive = FreecamSettings.Enabled
+        
+        if freecamActive then
+            local lookVector = Camera.CFrame.LookVector
+            freecamPos = Camera.CFrame.Position
+            freecamYaw = math.atan2(-lookVector.X, -lookVector.Z)
+            freecamPitch = math.asin(lookVector.Y)
+            
+            Camera.CameraType = Enum.CameraType.Scriptable
+            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+        else
+            Camera.CameraType = Enum.CameraType.Custom
+            UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+            
+            local localChar = getSafePath(workspace, "Const/Ignore/LocalCharacter") or Player.Character
+            if localChar then
+                local hum = localChar:FindFirstChildOfClass("Humanoid")
+                if hum then
+                    Camera.CameraSubject = hum
+                end
+            end
+        end
+    end)()
+end
+
+local function updateFreecam(dt)
+    return LPH_NO_VIRTUALIZE(function()
+        cheat.utility.anti_trace()
+        if not freecamActive then return end
+        
+        freecamFlySpeed = FreecamSettings.Speed
+        freecamSensitivity = FreecamSettings.Sensitivity
+        freecamSprintMultiplier = FreecamSettings.SprintMultiplier
+        
+        local mouseDelta = UserInputService:GetMouseDelta()
+        freecamYaw = freecamYaw - (mouseDelta.X * freecamSensitivity * 0.05)
+        freecamPitch = freecamPitch - (mouseDelta.Y * freecamSensitivity * 0.05)
+        freecamPitch = mathclamp(freecamPitch, math.rad(-89), math.rad(89))
+        
+        local rotation = CFrame.Angles(0, freecamYaw, 0) * CFrame.Angles(freecamPitch, 0, 0)
+        local moveDir = Vector3.new(0, 0, 0)
+        
+        if _IsKeyDown(UserInputService, Enum.KeyCode.W) then
+            moveDir = moveDir + Vector3.new(0, 0, -1)
+        end
+        if _IsKeyDown(UserInputService, Enum.KeyCode.S) then
+            moveDir = moveDir + Vector3.new(0, 0, 1)
+        end
+        if _IsKeyDown(UserInputService, Enum.KeyCode.A) then
+            moveDir = moveDir + Vector3.new(-1, 0, 0)
+        end
+        if _IsKeyDown(UserInputService, Enum.KeyCode.D) then
+            moveDir = moveDir + Vector3.new(1, 0, 0)
+        end
+        if _IsKeyDown(UserInputService, Enum.KeyCode.E) then
+            moveDir = moveDir + Vector3.new(0, 1, 0)
+        end
+        if _IsKeyDown(UserInputService, Enum.KeyCode.Q) then
+            moveDir = moveDir + Vector3.new(0, -1, 0)
+        end
+        
+        local currentSpeed = freecamFlySpeed
+        if _IsKeyDown(UserInputService, Enum.KeyCode.LeftShift) then
+            currentSpeed = currentSpeed * freecamSprintMultiplier
+        end
+        
+        local worldMoveDir = rotation:VectorToWorldSpace(moveDir)
+        freecamPos = freecamPos + (worldMoveDir * currentSpeed * dt * 60)
+        
+        Camera.CFrame = CFrame.new(freecamPos) * rotation
+    end)()
+end
+
+SafeConnect(RunService.RenderStepped, function(dt)
+    if freecamActive then
+        Camera.CameraType = Enum.CameraType.Scriptable
+        updateFreecam(dt)
+    end
+end)
+
+local BaseNamesFilter = {
+    ["hitbox"] = true,
+    ["leftwall"] = true,
+    ["rightwall"] = true,
+    ["lefthinge"] = true,
+    ["righthinge"] = true,
+    ["frame"] = true,
+    ["wall"] = true,
+    ["roof"] = true,
+    ["floor"] = true,
+    ["stair"] = true,
+    ["lefthandle"] = true,
+    ["righthandle"] = true
+}
+
+local function IsBaseStructurePart(part)
+    if not part:IsA("BasePart") then return false end
+    local lowerName = string.lower(part.Name)
+    
+    if BaseNamesFilter[lowerName] then
+        return true
+    end
+    
+    local parent = part.Parent
+    if parent and parent:IsA("Model") then
+        local pName = string.lower(parent.Name)
+        if BaseNamesFilter[pName] or parent:FindFirstChild("Hitbox") or parent:FindFirstChild("LeftWall") then
+            if not string.find(lowerName, "enclosure") and not string.find(lowerName, "door") and not string.find(lowerName, "lock") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function ApplyXrayToPart(part)
+    if not IsBaseStructurePart(part) then return end
+    
+    if not XraySettings.Cache[part] then
+        XraySettings.Cache[part] = {
+            Transparency = part.Transparency,
+            CastShadow = part.CastShadow
+        }
+    end
+    
+    part.Transparency = XraySettings.Transparency
+    part.CastShadow = false
+end
+
+local function UpdateXrayState()
+    if XraySettings.Enabled then
+        for _, desc in ipairs(workspace:GetDescendants()) do
+            if desc:IsA("BasePart") then
+                ApplyXrayToPart(desc)
+            end
+        end
+    else
+        for part, original in pairs(XraySettings.Cache) do
+            if part and part.Parent then
+                pcall(function()
+                    part.Transparency = original.Transparency
+                    part.CastShadow = original.CastShadow
+                end)
+            end
+        end
+        table.clear(XraySettings.Cache)
+    end
+end
+
+SafeConnect(workspace.DescendantAdded, function(desc)
+    if XraySettings.Enabled and desc:IsA("BasePart") then
+        task.wait(0.1) 
+        pcall(ApplyXrayToPart, desc)
+    end
+end)
+
+local OriginalVMProperties = setmetatable({}, {__mode = "k"})
+
+pcall(function()
+    shared.SolyankaMultiHackCleanup = function()
+        pcall(RestoreOriginalSky)
+        
+        pcall(function()
+            if freecamActive then
+                FreecamSettings.Enabled = false
+                toggleFreecam()
+            end
+        end)
+        
+        pcall(function()
+            XraySettings.Enabled = false
+            UpdateXrayState()
+        end)
+        
+        local stealthEffect = workspace.CurrentCamera and workspace.CurrentCamera:FindFirstChild("Solyanka_StealthCorrection")
+        if stealthEffect then
+            pcall(function() stealthEffect:Destroy() end)
+        end
+        
+        for _, conn in ipairs(Connections) do
+            if conn.Disconnect then pcall(function() conn:Disconnect() end) end
+        end
+        
+        local fpsArms = getSafePath(workspace, "Const/Ignore/FPSArms") or getSafePath(workspace, "Ignore/FPSArms")
+        if fpsArms then
+            for _, descendant in ipairs(fpsArms:GetDescendants()) do
+                if descendant:IsA("BasePart") then
+                    local backup = OriginalVMProperties[descendant]
+                    if backup then
+                        pcall(function()
+                            descendant.Color = backup.Color
+                            descendant.Material = backup.Material
+                            descendant.Transparency = backup.Transparency
+                            if descendant:IsA("MeshPart") and backup.TextureID then
+                                descendant.TextureID = backup.TextureID
+                            end
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end)
+
+local function detectWeapon(model)
+    if not model then return "None" end
+    local isLocal = isLocalModel(model)
+    local currentTime = tick() 
+    
+    if isLocal then
+        return LocalWeaponStats.Name
+    end
+    
+    local lastUpdate = ESP.cache.weaponTime[model] 
+    if lastUpdate and currentTime - lastUpdate < 1.2 then 
+        return ESP.cache.weapon[model] or "None" 
+    end
+    
+    local hand = model:FindFirstChild("HandModel")
+    if not hand then 
+        ESP.cache.weapon[model] = "None" 
+        ESP.cache.weaponTime[model] = currentTime 
+        return "None" 
+    end
+    
+    local bestMatchName = "None"
+    local bestMatchCount = 0
+    
+    for weaponName, parts in pairs(PartSets) do
+        local foundCount = 0
+        for _, partPath in ipairs(parts) do
+            local foundPart
+            if string.find(partPath, "/") then
+                foundPart = getSafePath(hand, partPath)
+            else
+                foundPart = hand:FindFirstChild(partPath, true)
+            end
+            
+            if foundPart then
+                foundCount = foundCount + 1
+            end
+        end
+        
+        if foundCount >= (#parts * 0.4) and foundCount > bestMatchCount then
+            bestMatchName = weaponName
+            bestMatchCount = foundCount
+        end
+    end
+    
+    ESP.cache.weapon[model] = bestMatchName 
+    ESP.cache.weaponTime[model] = currentTime 
+    return bestMatchName
+end
+
+local function updateLocalWeaponCache()
+    local fpsArms = getSafePath(workspace, "Const/Ignore/FPSArms") or getSafePath(workspace, "Ignore/FPSArms")
+    local hand = fpsArms and fpsArms:FindFirstChild("HandModel")
+    
+    if not hand then
+        local localChar = getSafePath(workspace, "Const/Ignore/LocalCharacter") or Player.Character
+        hand = localChar and localChar:FindFirstChild("HandModel")
+    end
+    
+    if not hand then
+        LocalWeaponStats.hasWeapon = false
+        LocalWeaponStats.Name = "None"
+        LocalWeaponStats.side = 0
+        LocalWeaponStats.up = 0
+        return
+    end
+
+    local bestWeapon = "None"
+    local maxScore = 0
+
+    for weaponName, parts in pairs(PartSets) do
+        local score = 0
+        local totalParts = 0
+        for _, partPath in ipairs(parts) do
+            if partPath ~= "DefaultSight" then
+                totalParts = totalParts + 1
+                local foundPart
+                if string.find(partPath, "/") then
+                    foundPart = getSafePath(hand, partPath)
+                else
+                    foundPart = hand:FindFirstChild(partPath, true)
+                end
+                if foundPart then
+                    score = score + 1
+                end
+            end
+        end
+
+        local ratio = totalParts > 0 and (score / totalParts) or 0
+        if ratio > maxScore and ratio >= 0.25 then
+            maxScore = ratio
+            bestWeapon = weaponName
+        end
+    end
+
+    if bestWeapon ~= "None" then
+        LocalWeaponStats.hasWeapon = true
+        LocalWeaponStats.Name = bestWeapon
+        local stats = WeaponPredictionStats[bestWeapon]
+        if stats then
+            LocalWeaponStats.side = stats.side
+            LocalWeaponStats.up = stats.up
+        else
+            LocalWeaponStats.side = 0
+            LocalWeaponStats.up = 0
+        end
+    else
+        LocalWeaponStats.hasWeapon = false
+        LocalWeaponStats.Name = "None"
+        LocalWeaponStats.side = 0
+        LocalWeaponStats.up = 0
+    end
+end
+
+task.spawn(function()
+    while shared.SolyankaSessionToken == CurrentSessionToken do
+        pcall(updateLocalWeaponCache)
+        task.wait(0.15)
+    end
+end)
+
+local function getWeaponStats(weaponName)
+    local lowerName = string.lower(weaponName)
+    for name, stats in pairs(WeaponPredictionStats) do
+        if string.lower(name) == lowerName then
+            return stats
+        end
+    end
+    return nil
+end
+
+local function findItemRecursively(parent, itemName)
+    local lowerName = string.lower(itemName)
+    local direct = parent:FindFirstChild(itemName)
+    if direct then return direct end
+    
+    for _, child in ipairs(parent:GetChildren()) do
+        if string.lower(child.Name) == lowerName then
+            return child
+        end
+        if child:IsA("Folder") then
+            local found = findItemRecursively(child, itemName)
+            if found then return found end
+        end
+    end
+    return nil
+end
+
+local function findItemInShared(itemName)
+    local sharedFolder = ReplicatedStorage:FindFirstChild("Shared")
+    local items = sharedFolder and sharedFolder:FindFirstChild("items")
+    if not items then return nil end
+    return findItemRecursively(items, itemName)
+end
+
+local function getBoundingBoxOfDescendants(object)
+    local minX, minY, minZ = math.huge, math.huge, math.huge
+    local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
+    local hasParts = false
+    
+    for _, p in ipairs(object:GetDescendants()) do
+        if p:IsA("BasePart") then
+            hasParts = true
+            local pos = p.Position
+            local size = p.Size
+            minX = math.min(minX, pos.X - size.X/2)
+            minY = math.min(minY, pos.Y - size.Y/2)
+            minZ = math.min(minZ, pos.Z - size.Z/2)
+            maxX = math.max(maxX, pos.X + size.X/2)
+            maxY = math.max(maxY, pos.Y + size.Y/2)
+            maxZ = math.max(maxZ, pos.Z + size.Z/2)
+        end
+    end
+    
+    if not hasParts and object:IsA("BasePart") then
+        return object.CFrame, object.Size
+    end
+    
+    if hasParts then
+        local center = Vector3.new((minX + maxX)/2, (minY + maxY)/2, (minZ + maxZ)/2)
+        local size = Vector3.new(maxX - minX, maxY - minY, maxZ - minZ)
+        return CFrame.new(center), size
+    end
+    
+    return CFrame.new(0, 0, 0), Vector3.new(1, 1, 1)
+end
+
+local function prepareViewport(item)
+    local imageNode = item:FindFirstChild("Image")
+    if not imageNode then return nil end
+    
+    local vp = Instance.new("ViewportFrame")
+    vp.BackgroundTransparency = 1
+    vp.Size = UDim2.new(1, 0, 1, 0)
+    
+    vp.Ambient = Color3.fromRGB(240, 240, 240)
+    vp.LightColor = Color3.fromRGB(255, 255, 255)
+    vp.LightDirection = Vector3.new(-1, -1, -1)
+    
+    local clone = imageNode:Clone()
+    clone.Parent = vp
+    
+    local camera = Instance.new("Camera")
+    camera.FieldOfView = 35
+    camera.Parent = vp
+    vp.CurrentCamera = camera
+    
+    local cf, size = getBoundingBoxOfDescendants(clone)
+    local maxDim = math.max(size.X, size.Y, size.Z)
+    if maxDim == 0 then maxDim = 1 end
+    
+    local dist = (maxDim / 2) / math.tan(math.rad(camera.FieldOfView / 2)) * 1.3
+    camera.CFrame = CFrame.new(cf.Position + Vector3.new(dist * 0.5, dist * 0.3, dist), cf.Position)
+    
+    return vp
+end
+
+local function destroyViewportCham(m)
+    local highlight = ESP.cache.chams[m]
+    if highlight then
+        pcall(function() highlight:Destroy() end)
+        ESP.cache.chams[m] = nil
+    end
+    activeChams[m] = nil
+end
+
+local function createViewportCham(m)
+    if ESP.cache.chams[m] then return end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Name = m.Name .. "_Chams"
+    highlight.Adornee = m
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.FillColor = ESP.settings.chamsColor
+    highlight.FillTransparency = ESP.settings.chamsTransparency
+    highlight.OutlineColor = ESP.settings.chamsColor
+    highlight.OutlineTransparency = 1 
+    highlight.Parent = gui
+    
+    ESP.cache.chams[m] = highlight
+end
+
+local function updateChams(m, enabled)
+    local highlight = ESP.cache.chams[m]
+    
+    if not ESP.settings.chamsEnabled or not enabled then 
+        if highlight then
+            highlight.Enabled = false
+        end
+        activeChams[m] = nil
+        return 
+    end
+    
+    if not highlight then
+        createViewportCham(m)
+        highlight = ESP.cache.chams[m]
+    end
+    
+    if highlight then
+        highlight.Enabled = true
+        highlight.FillColor = ESP.settings.chamsColor
+        highlight.FillTransparency = ESP.settings.chamsTransparency
+        highlight.OutlineTransparency = 1 
+        activeChams[m] = true
+    end
+end
+
+local function isWeaponPart(part)
+    if part:FindFirstAncestor("HandModel") then
+        return true
+    end
+    return false
+end
+
+local function applyViewmodelChams(part, isWeapon)
+    if not part:IsA("BasePart") then return end
+    
+    if not OriginalVMProperties[part] then
+        local partNameLower = part.Name:lower()
+        local isInvisible = (part.Transparency >= 0.9) or 
+                            (partNameLower:find("muzzle")) or 
+                            (partNameLower:find("aim")) or 
+                            (partNameLower:find("pointer")) or
+                            (partNameLower:find("laser")) or
+                            (partNameLower:find("helper")) or
+                            (partNameLower:find("joint")) or
+                            (partNameLower == "arrow" and not part:IsA("MeshPart"))
+
+        OriginalVMProperties[part] = {
+            Color = part.Color,
+            Material = part.Material,
+            Transparency = part.Transparency,
+            TextureID = part:IsA("MeshPart") and part.TextureID or nil,
+            IsTechnical = isInvisible
+        }
+    end
+
+    local backup = OriginalVMProperties[part]
+    if backup.IsTechnical then
+        part.Transparency = 1
+        return
+    end
+
+    local enabled = false
+    local color = Color3.fromRGB(255, 255, 255)
+    local materialStr = "ForceField"
+    local trans = 0.5
+
+    if isWeapon then
+        enabled = ESP.settings.weaponChamsEnabled
+        color = ESP.settings.weaponChamsColor
+        materialStr = ESP.settings.weaponChamsMaterial
+        trans = ESP.settings.weaponChamsTransparency
+    else
+        enabled = ESP.settings.handChamsEnabled
+        color = ESP.settings.handChamsColor
+        materialStr = ESP.settings.handChamsMaterial
+        trans = ESP.settings.handChamsTransparency
+    end
+
+    if not enabled then
+        part.Color = backup.Color
+        part.Material = backup.Material
+        part.Transparency = backup.Transparency
+        if part:IsA("MeshPart") and backup.TextureID then
+            part.TextureID = backup.TextureID
+        end
+        return
+    end
+
+    part.Color = color
+    part.Material = Enum.Material[materialStr] or Enum.Material.ForceField
+    part.Transparency = trans
+    if part:IsA("MeshPart") then
+        part.TextureID = "" 
+    end
+end
+
+local function updateAllViewmodelChams()
+    local fpsArms = getSafePath(workspace, "Const/Ignore/FPSArms") or getSafePath(workspace, "Ignore/FPSArms")
+    if not fpsArms then return end
+
+    for _, descendant in ipairs(fpsArms:GetDescendants()) do
+        if descendant:IsA("BasePart") then
+            local isWeapon = isWeaponPart(descendant)
+            pcall(applyViewmodelChams, descendant, isWeapon)
+        end
+    end
+end
+
+task.spawn(function()
+    while shared.SolyankaSessionToken == CurrentSessionToken do
+        pcall(updateAllViewmodelChams)
+        task.wait(0.1)
+    end
+end)
+
+local function ESP_IsTeam(m) 
+    if not m then return false end 
+    local h = m:FindFirstChild("Head") 
+    return h and h:FindFirstChild("Dot") and h.Dot.Enabled == true or false 
+end
+
+local function ESP_IsSleeper(m)
+    if not m then return false end
+    local c = ESP.cache.sleep[m] 
+    if c and tick() - c.time < 1 then return c.value end
+    local lt, v = m:FindFirstChild("LowerTorso"), false
+    if lt then 
+        local rr = lt:FindFirstChild("RootRig") 
+        if rr then 
+            local ok, a = pcall(function() return rr.CurrentAngle end) 
+            v = ok and type(a) == "number" and a ~= 0 or false 
+        end 
+    end
+    ESP.cache.sleep[m] = {value = v, time = tick()} 
+    return v
+end
+
+local function ESP_IsPlayer(m) 
+    local c = ESP.cache.player[m] 
+    if c and tick() - c.time < 2 then return c.value end 
+    local t = m:FindFirstChild("Torso") 
+    local v = t and t:FindFirstChild("LeftBooster") and true or false 
+    ESP.cache.player[m] = {value = v, time = tick()} 
+    return v 
+end
+
+local function ESP_IsAI(m) 
+    local t = m:FindFirstChild("Torso") or m:FindFirstChild("HumanoidRootPart") 
+    return t and t.CollisionGroup == "NPC" or false 
+end
+
+local function shouldSkip(m) 
+    if not m or not m.Parent then return true end 
+    local s = ESP.settings
+    if s.sleepCheck and ESP_IsSleeper(m) then return true end 
+    if s.teamCheck and ESP_IsTeam(m) then return true end 
+    if s.aiCheck and ESP_IsAI(m) then return true end 
+    return false 
+end
+
+local function newText() 
+    local t = Drawing.new("Text") 
+    t.Visible = false 
+    t.Size = 13 
+    t.Center = true 
+    t.Outline = true 
+    t.OutlineColor = Color3.fromRGB(0,0,0)
+    t.Font = ESP.settings.font 
+    return t 
+end
+
+local function getOreTypeAndPart(model)
+    if not model or model.Name ~= "Model" then return nil end
+    
+    local parts = {}
+    for _, child in ipairs(model:GetChildren()) do
+        if child:IsA("MeshPart") and string.find(child.MeshId, "12939036056") then
+            table.insert(parts, child)
+        end
+    end
+    
+    if #parts == 0 then return nil end
+    
+    local stonePart = nil
+    local ironPart = nil
+    local nitratePart = nil
+    
+    for _, part in ipairs(parts) do
+        local colorName = part.BrickColor.Name
+        local r, g, b = part.Color.R * 255, part.Color.G * 255, part.Color.B * 255
+        
+        if colorName == "Burlap" or (r > 160 and r < 220 and g > 140 and g < 190 and b > 90 and b < 140) then
+            ironPart = part
+        elseif colorName == "Institutional white" or (r > 230 and g > 230 and b > 230) then
+            nitratePart = part
+        elseif colorName == "Dark taupe" or (r > 50 and r < 90 and g > 50 and g < 90 and b > 50 and b < 90) then
+            stonePart = part
+        end
+    end
+    
+    if ironPart then
+        return "Iron", ironPart
+    elseif nitratePart then
+        return "Nitrate", nitratePart
+    elseif stonePart then
+        return "Stone", stonePart
+    end
+    
+    return nil
+end
+
+local function getLootTypeAndPart(model)
+    if not model then return nil end
+    local modelName = model.Name
+
+    if modelName == "Model" or string.find(modelName, "BACKPACK") then
+        local fabricPart = nil
+        local metalPart = nil
+        
+        for _, child in ipairs(model:GetChildren()) do
+            if child:IsA("BasePart") then
+                if child.Material == Enum.Material.Fabric and child.Name == "Part" then
+                    fabricPart = child
+                elseif child.Material == Enum.Material.Metal and child.Name == "Part" then
+                    metalPart = child
+                end
+            end
+        end
+        
+        if fabricPart and metalPart then
+            local fs = fabricPart.Size
+            local ms = metalPart.Size
+            if math.abs(fs.X - 2.0) < 0.6 and math.abs(fs.Y - 2.0) < 0.6 and math.abs(ms.X - 0.2) < 0.15 then
+                return "Backpack", fabricPart
+            end
+        end
+
+        if string.find(modelName, "BACKPACK") then
+            local prim = model:FindFirstChild("Part") or model:FindFirstChildOfClass("BasePart")
+            if prim then
+                return "Backpack", prim
+            end
+        end
+    end
+
+    if modelName ~= "Model" then return nil end
+    
+    local safeBody = model:FindFirstChild("Body")
+    if safeBody and model:FindFirstChild("Dials") and model:FindFirstChild("Wheel") then
+        return "Safe", safeBody
+    end
+    
+    local machinePart = model:FindFirstChild("Machine")
+    if machinePart and model:FindFirstChild("Dispenser") then
+        return "Vending Machine", machinePart
+    end
+    
+    local boxPart = model:FindFirstChild("box")
+    if boxPart and model:FindFirstChild("trash") then
+        return "Cardboard Box", boxPart
+    end
+    
+    local mBottom = model:FindFirstChild("Bottom")
+    if mBottom and model:FindFirstChild("Handles") then
+        return "Military Crate", mBottom
+    end
+
+    if safeBody and model:FindFirstChild("default") and not model:FindFirstChild("Dials") then
+        if safeBody:IsA("MeshPart") and string.find(safeBody.MeshId, "13856404606") then
+            return "Iron Crate", safeBody
+        end
+        return "Crate", safeBody
+    end
+    
+    local defaultPart = model:FindFirstChild("default")
+    if defaultPart and defaultPart:IsA("MeshPart") then
+        if string.find(defaultPart.MeshId, "18507721359") then
+            return "Scrap Barrel", defaultPart
+        end
+        if #defaultPart:GetChildren() > 3 then
+            return "Oil Gasoline", defaultPart
+        end
+    end
+    
+    local pPart = model:FindFirstChild("Prim")
+    if pPart and pPart:IsA("BasePart") then
+        local size = pPart.Size
+        local aspectDiff = math.abs(size.X - size.Z)
+        
+        if aspectDiff > 0.4 then
+            return "Gasoline", pPart
+        else
+            return "Oil Gasoline", pPart
+        end
+    end
+    
+    return nil
+end
+
+local function updateAllFonts(newFont)
+    ESP.settings.font = newFont
+    for _, d in next, ESP.cache.boxes do
+        if d.nameText then d.nameText.Font = newFont end
+        if d.distText then d.distText.Font = newFont end
+        if d.weapText then d.weapText.Font = newFont end
+    end
+    for _, d in next, ESP.oreCache do
+        if d.text then d.text.Font = newFont end
+    end
+    for _, d in next, ESP.lootCache do
+        if d.text then d.text.Font = newFont end
+    end
+end
+
+local function destroyEntry(m, d)
+    pcall(function() d.cacheConn:Disconnect() end)
+    if d.nameText then d.nameText:Remove() end 
+    if d.distText then d.distText:Remove() end 
+    if d.weapText then d.weapText:Remove() end 
+    if d.combinedFrame then d.combinedFrame:Destroy() end
+    destroyViewportCham(m)
+    ESP.cache.boxes[m] = nil
+end
+
+local function createEntry(m)
+    if ESP.cache.boxes[m] then return end
+    
+    local combinedFrame = Instance.new("Frame")
+    combinedFrame.BackgroundTransparency = 1
+    combinedFrame.Size = UDim2.new(0, 250, 0, 32)
+    combinedFrame.Visible = false
+    combinedFrame.Parent = gui
+    
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.FillDirection = Enum.FillDirection.Horizontal
+    listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    listLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    listLayout.SortOrder = Enum.SortOrder.Name 
+    listLayout.Padding = UDim.new(0, 4)
+    listLayout.Parent = combinedFrame
+    
+    local entry = { 
+        nameText = newText(), 
+        distText = newText(), 
+        weapText = newText(), 
+        combinedFrame = combinedFrame,
+        activeVisual = nil,  
+        activeArmorVisuals = {}, 
+        lastWeapName = "",
+        lastArmorList = {},
+        hrp = m:FindFirstChild("HumanoidRootPart"), 
+        lastCache = 0, 
+        isPlayer = false, 
+        isSleeper = false, 
+        cachedWeapon = "None",
+        armorNeedsRebuild = false
+    }
+    entry.cacheConn = SafeConnect(m.ChildAdded, function() 
+        entry.hrp = m:FindFirstChild("HumanoidRootPart") 
+    end)
+    ESP.cache.boxes[m] = entry
+end
+
+local function createOreEntry(model, part)
+    if ESP.oreCache[model] then return end
+    
+    local text = Drawing.new("Text")
+    text.Visible = false
+    text.Size = 13
+    text.Center = true
+    text.Outline = true
+    text.OutlineColor = Color3.fromRGB(0,0,0)
+    text.Font = ESP.settings.font
+    
+    ESP.oreCache[model] = {
+        model = model,
+        part = part,
+        text = text
+    }
+end
+
+local function destroyOreEntry(model)
+    local d = ESP.oreCache[model]
+    if d then
+        if d.text then d.text:Remove() end
+        ESP.oreCache[model] = nil
+    end
+end
+
+local function createLootEntry(model, part)
+    if ESP.lootCache[model] then return end
+    
+    local text = Drawing.new("Text")
+    text.Visible = false
+    text.Size = 13
+    text.Center = true
+    text.Outline = true
+    text.OutlineColor = Color3.fromRGB(0,0,0)
+    text.Font = ESP.settings.font
+    
+    ESP.lootCache[model] = {
+        model = model,
+        part = part,
+        text = text
+    }
+end
+
+local function destroyLootEntry(model)
+    local d = ESP.lootCache[model]
+    if d then
+        if d.text then d.text:Remove() end
+        ESP.lootCache[model] = nil
+    end
+end
+
+local function checkAndAddObject(obj)
+    if not obj:IsA("Model") then return end
+    task.wait(0.1)
+    if not obj.Parent then return end
+    
+    if obj:FindFirstChild("HumanoidRootPart") then
+        createEntry(obj)
+    else
+        local oreType, orePart = getOreTypeAndPart(obj)
+        if oreType and orePart then
+            createOreEntry(obj, orePart)
+            return
+        end
+        
+        local lootType, lootPart = getLootTypeAndPart(obj)
+        if lootType and lootPart then
+            createLootEntry(obj, lootPart)
+        end
+    end
+end
+
+local function parseMultiDropdown(Value, keysMap)
+    for _, settingKey in pairs(keysMap) do
+        ESP.settings[settingKey] = false
+    end
+    if type(Value) == "table" then
+        for k, v in pairs(Value) do
+            if type(k) == "string" then
+                local settingKey = keysMap[k]
+                if settingKey then ESP.settings[settingKey] = v end
+            elseif type(v) == "string" then
+                local settingKey = keysMap[v]
+                if settingKey then ESP.settings[settingKey] = true end
+            end
+        end
+    end
+end
+
+local AimbotCache = {
+    sleep = setmetatable({}, {__mode = "k"}),
+    bot = setmetatable({}, {__mode = "k"}),
+    lastPos = setmetatable({}, {__mode = "k"}),
+    smoothVel = setmetatable({}, {__mode = "k"}),
+    players = {}
+}
+
+local FovCircle = Drawing.new("Circle")
+FovCircle.Thickness = 1
+FovCircle.NumSides = 64
+FovCircle.Radius = AimbotSettings.FovRadius
+FovCircle.Filled = false
+FovCircle.Visible = false
+FovCircle.Transparency = 1
+FovCircle.Color = AimbotSettings.FovColor
+FovCircle.ZIndex = 999
+
+local function updateFovPos()
+    local size = Camera.ViewportSize
+    FovCircle.Position = Vector2.new(size.X / 2, size.Y / 2)
+end
+updateFovPos()
+SafeConnect(Camera:GetPropertyChangedSignal("ViewportSize"), updateFovPos)
+
+local function AB_GetVelocityPart(model)
+    if not model then return nil end
+    return model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Head") or model:FindFirstChild("Torso")
+end
+
+local function AB_GetTargetPart(model)
+    if not model then return nil end
+    local targetName = AimbotSettings.TargetPart
+    
+    if targetName == "Torso" then
+        return model:FindFirstChild("Torso") or model:FindFirstChild("UpperTorso") or model:FindFirstChild("LowerTorso") or model:FindFirstChild("HumanoidRootPart")
+    end
+    
+    return model:FindFirstChild(targetName) or model:FindFirstChild("Head") or model:FindFirstChild("HumanoidRootPart")
+end
+
+local function AB_IsVisible(targetPart)
+    if not AimbotSettings.WallCheck then return true end
+    local origin = Camera.CFrame.Position
+    local destination = targetPart.Position
+    local direction = destination - origin
+    
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {Player.Character, targetPart.Parent}
+    params.IgnoreWater = true
+    
+    local result = workspace:Raycast(origin, direction, params)
+    return result == nil
+end
+
+local function AB_GetTargetVelocity(model, deltaTime)
+    if not model then return Vector3.new() end
+    local part = AB_GetVelocityPart(model)
+    if not part then return Vector3.new() end
+    
+    if part.AssemblyLinearVelocity and part.AssemblyLinearVelocity.Magnitude > 0.1 then
+        return part.AssemblyLinearVelocity
+    end
+
+    local currentTick = tick()
+    local lastData = AimbotCache.lastPos[model]
+    
+    if not lastData then
+        AimbotCache.lastPos[model] = { pos = part.Position, time = currentTick }
+        AimbotCache.smoothVel[model] = Vector3.new()
+        return Vector3.new()
+    end
+    
+    local elapsed = math.clamp(currentTick - lastData.time, 0.001, 0.05)
+    local rawVelocity = (part.Position - lastData.pos) / elapsed
+    AimbotCache.lastPos[model] = { pos = part.Position, time = currentTick }
+    
+    local previousVelocity = AimbotCache.smoothVel[model] or Vector3.new()
+    local smoothedVelocity = previousVelocity:Lerp(rawVelocity, math.clamp(deltaTime * 10, 0, 1))
+    AimbotCache.smoothVel[model] = smoothedVelocity
+    return smoothedVelocity
+end
+
+local function AB_RegisterModel(obj)
+    if obj:IsA("Model") and obj.Name ~= Player.Name then
+        if obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChild("LowerTorso") then 
+            table.insert(AimbotCache.players, obj) 
+        end
+    end
+end
+
+for _, v in next, workspace:GetChildren() do AB_RegisterModel(v) end
+SafeConnect(workspace.ChildAdded, AB_RegisterModel)
+SafeConnect(workspace.ChildRemoved, function(obj)
+    for i = #AimbotCache.players, 1, -1 do
+        if AimbotCache.players[i] == obj then
+            table.remove(AimbotCache.players, i)
+            AimbotCache.lastPos[obj] = nil 
+            AimbotCache.sleep[obj] = nil 
+            AimbotCache.bot[obj] = nil 
+            AimbotCache.smoothVel[obj] = nil
+            break
+        end
+    end
+end)
+
+local function isBindPressed(bind)
+    if not bind then return false end
+    local rawBind = bind
+    if type(bind) == "table" then
+        rawBind = bind.Value or bind[1] or bind
+    end
+    
+    if type(rawBind) == "table" then
+        for _, val in pairs(rawBind) do
+            if typeof(val) == "EnumItem" then
+                rawBind = val
+                break
+            end
+        end
+    end
+    
+    if typeof(rawBind) == "EnumItem" then
+        if rawBind.ClassName == "UserInputType" then
+            return UserInputService:IsMouseButtonPressed(rawBind)
+        elseif rawBind.ClassName == "KeyCode" then
+            return UserInputService:IsKeyDown(rawBind)
+        end
+    end
+    
+    return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+end
+
+local currentTarget = nil
+
+SafeConnect(RunService.RenderStepped, function(deltaTime)
+    local config = AimbotSettings
+    if not config.Enabled then
+        currentTarget = nil
+        FovCircle.Visible = false
+        return
+    end
+    
+    FovCircle.Visible = config.FovEnabled
+    FovCircle.Radius = config.FovRadius
+    FovCircle.Color = config.FovColor
+    
+    local cameraPosition = Camera.CFrame.Position
+    local viewportSize = Camera.ViewportSize
+    local screenCenter = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+
+    if currentTarget and currentTarget.Parent then
+        local targetPart = AB_GetTargetPart(currentTarget)
+        if targetPart then
+            local screenPos, visible = Camera:WorldToViewportPoint(targetPart.Position)
+            if visible then
+                local distanceToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                if distanceToCenter > config.FovRadius * 2 then 
+                    currentTarget = nil 
+                end
+            else 
+                currentTarget = nil 
+            end
+        else 
+            currentTarget = nil 
+        end
+    else 
+        currentTarget = nil 
+    end
+    
+    if not currentTarget then
+        local nearestDistance = math.huge
+        local nearestCenterDist = math.huge
+        
+        for _, otherPlayer in ipairs(AimbotCache.players) do
+            if not otherPlayer or not otherPlayer.Parent then continue end
+            if otherPlayer == Player.Character or isLocalModel(otherPlayer) then continue end
+            if config.SleepCheck and ESP_IsSleeper(otherPlayer) then continue end
+            if config.AiCheck and ESP_IsAI(otherPlayer) then continue end
+            if config.TeamCheck and ESP_IsTeam(otherPlayer) then continue end
+            
+            local targetPart = AB_GetTargetPart(otherPlayer)
+            if not targetPart then continue end
+            
+            local worldDist = (cameraPosition - targetPart.Position).Magnitude
+            if worldDist > config.AimRadius then continue end
+            
+            local screenPos, visible = Camera:WorldToViewportPoint(targetPart.Position)
+            if not visible then continue end
+            
+            local distanceToCenter = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+            if distanceToCenter > config.FovRadius then continue end
+            
+            if not AB_IsVisible(targetPart) then continue end
+            
+            if worldDist < nearestDistance or (worldDist == nearestDistance and distanceToCenter < nearestCenterDist) then
+                nearestDistance = worldDist
+                nearestCenterDist = distanceToCenter
+                currentTarget = otherPlayer
+            end
+        end
+    end
+    
+    if not currentTarget then return end
+    
+    local targetPart = AB_GetTargetPart(currentTarget)
+    if not targetPart or not isBindPressed(config.Keybind) then return end
+    
+    local targetDistance = (cameraPosition - targetPart.Position).Magnitude
+    local targetVelocity = AB_GetTargetVelocity(currentTarget, deltaTime)
+    local final3DTargetPos = targetPart.Position
+
+    if config.PredictionEnabled and LocalWeaponStats.hasWeapon then
+        local projectileSpeed = 280
+        local timeToTarget = targetDistance / projectileSpeed
+
+        local dropComp = (0.5 * 196.2 * (timeToTarget ^ 2)) * (LocalWeaponStats.up * 0.08) * config.PredictionScaleUp
+        local leadComp = targetVelocity * timeToTarget * LocalWeaponStats.side
+
+        final3DTargetPos = targetPart.Position + Vector3.new(0, dropComp, 0) + leadComp
+    end
+
+    local predictedScreenPos, visible = Camera:WorldToViewportPoint(final3DTargetPos)
+    if not visible then return end
+
+    local fovScale = Camera.FieldOfView / 70.0
+
+    local rawMoveX = (predictedScreenPos.X - screenCenter.X)
+    local rawMoveY = (predictedScreenPos.Y - screenCenter.Y)
+
+    local moveX = (rawMoveX * fovScale) / config.Smoothness
+    local moveY = (rawMoveY * fovScale) / config.Smoothness
+
+    if mousemoverel then
+        mousemoverel(moveX, moveY)
+    end
+end)
+
+local HitboxCache = {
+    Original = {},
+    MixToken = 0
+}
+
+local function Hitbox_ShouldSkip(model)
+    if not model or not model.Parent then return true end
+    local settings = HitboxSettings
+    if settings.AiCheck and ESP_IsAI(model) then return true end
+    if settings.SleepCheck and ESP_IsSleeper(model) then return true end
+    if settings.TeamCheck and ESP_IsTeam(model) then return true end
+    return false
+end
+
+local function Hitbox_BackupPart(part)
+    if not HitboxCache.Original[part] then
+        HitboxCache.Original[part] = {
+            Size = part.Size,
+            Transparency = part.Transparency,
+            Color = part.Color,
+            Material = part.Material,
+            CanCollide = part.CanCollide
+        }
+    end
+end
+
+local function Hitbox_RestorePart(part)
+    if not part or not part.Parent then return end
+    local backup = HitboxCache.Original[part]
+    if not backup then return end
+    part.Size = backup.Size
+    part.Transparency = backup.Transparency
+    part.Color = backup.Color
+    part.Material = backup.Material
+    part.CanCollide = backup.CanCollide
+end
+
+local function Hitbox_ApplyProperties(part)
+    if not part or not part:IsA("BasePart") then return end
+    Hitbox_BackupPart(part)
+    local settings = HitboxSettings
+    part.Size = Vector3.new(settings.SizeX, settings.SizeY, settings.SizeZ)
+    part.Transparency = settings.Transparency
+    part.Color = settings.Color
+    part.CanCollide = settings.CanCollide 
+end
+
+local function Hitbox_RestoreAll()
+    for part, backup in pairs(HitboxCache.Original) do
+        if part and part.Parent then
+            part.Size = backup.Size
+            part.Transparency = backup.Transparency
+            part.Color = backup.Color
+            part.Material = backup.Material
+            part.CanCollide = backup.CanCollide
+        end
+    end
+    HitboxCache.Original = {}
+end
+
+local function Hitbox_ApplyToModel(model)
+    if not model or not model.Parent then return end
+    local settings = HitboxSettings
+    local head = model:FindFirstChild("Head")
+    local torso = model:FindFirstChild("Torso") or model:FindFirstChild("HumanoidRootPart")
+    
+    if not head or not torso then return end
+    
+    if Hitbox_ShouldSkip(model) or not settings.Enabled then
+        Hitbox_RestorePart(head)
+        Hitbox_RestorePart(torso)
+        return
+    end
+    
+    if settings.TargetPart == "Head" then
+        Hitbox_ApplyProperties(head)
+        Hitbox_RestorePart(torso)
+    elseif settings.TargetPart == "Torso" then
+        Hitbox_ApplyProperties(torso)
+        Hitbox_RestorePart(head)
+    end
+end
+
+local function Hitbox_UpdateAll()
+    if HitboxSettings.TargetPart == "Mix" then return end
+    for _, model in pairs(workspace:GetChildren()) do
+        if model:IsA("Model") and model.Name ~= Player.Name then
+            if model:FindFirstChild("Head") or model:FindFirstChild("HumanoidRootPart") then
+                Hitbox_ApplyToModel(model)
+            end
+        end
+    end
+end
+
+local function Hitbox_StartMixLoop()
+    HitboxCache.MixToken = HitboxCache.MixToken + 1
+    local localToken = HitboxCache.MixToken
+    
+    task.spawn(function()
+        local activePhase = 0
+        local settings = HitboxSettings
+        
+        while HitboxCache.MixToken == localToken and settings.Enabled and settings.TargetPart == "Mix" do
+            for _, model in pairs(workspace:GetChildren()) do
+                if model:IsA("Model") and model.Name ~= Player.Name then
+                    local head = model:FindFirstChild("Head")
+                    local torso = model:FindFirstChild("Torso") or model:FindFirstChild("HumanoidRootPart")
+                    
+                    if head and torso and not Hitbox_ShouldSkip(model) then
+                        if activePhase == 0 then
+                            Hitbox_ApplyProperties(head)
+                            Hitbox_RestorePart(torso)
+                        else
+                            Hitbox_ApplyProperties(torso)
+                            Hitbox_RestorePart(head)
+                        end
+                    end
+                end
+            end
+            activePhase = 1 - activePhase
+            task.wait(settings.MixSpeed)
+        end
+        
+        for _, model in pairs(workspace:GetChildren()) do
+            if model:IsA("Model") then
+                local head = model:FindFirstChild("Head")
+                local torso = model:FindFirstChild("Torso") or model:FindFirstChild("HumanoidRootPart")
+                if head then Hitbox_RestorePart(head) end
+                if torso then Hitbox_RestorePart(torso) end
+            end
+        end
+    end)
+end
+
+SafeConnect(workspace.ChildAdded, function(child)
+    if not HitboxSettings.Enabled or not child:IsA("Model") or child.Name == Player.Name then return end
+    task.wait(0.1)
+    if HitboxSettings.TargetPart ~= "Mix" then
+        Hitbox_ApplyToModel(child)
+    end
+end)
+
+SafeConnect(workspace.ChildRemoved, function(child)
+    if child:IsA("Model") then
+        local head = child:FindFirstChild("Head")
+        local torso = child:FindFirstChild("Torso") or child:FindFirstChild("HumanoidRootPart")
+        if head then HitboxCache.Original[head] = nil end
+        if torso then HitboxCache.Original[torso] = nil end
+    end
+end)
+
+task.spawn(function()
+    while shared.SolyankaSessionToken == CurrentSessionToken do
+        task.wait(0.5)
+        if HitboxSettings.Enabled and HitboxSettings.TargetPart ~= "Mix" then
+            Hitbox_UpdateAll()
+        end
+    end
+end)
+
+SafeConnect(RunService.RenderStepped, function(delta)
+    if not movement.enabled then return end
+    
+    local target_trident = (getgenv and getgenv().trident) or _G.trident or (shared and rawget(shared, "trident"))
+    local middle = nil
+    if target_trident and target_trident.middlepart then
+        middle = target_trident.middlepart
+    else
+        local ignore = workspace:FindFirstChild("Ignore") or (workspace:FindFirstChild("Const") and workspace.Const:FindFirstChild("Ignore"))
+        local localChar = ignore and ignore:FindFirstChild("LocalCharacter")
+        middle = localChar and (localChar:FindFirstChild("Middle") or localChar:FindFirstChild("HumanoidRootPart"))
+    end
+    
+    if not middle or not middle.Parent then return end
+    
+    local speed = movement.speed
+    local bhop_enabled = movement.bhop_enabled
+    local bhop_duration = movement.bhop_duration
+    local bhop_height = movement.bhop_height
+    local bhop_max_height = movement.bhop_max_height
+    local forcesprint = movement.forcesprint
+
+    local on_ground = false
+    local ground_normal = Vector3.new(0, 1, 0)
+    local distance_to_ground = 999
+    
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.FilterDescendantsInstances = {Player.Character, workspace.CurrentCamera}
+    raycastParams.IgnoreWater = true
+    
+    local ground_ray = workspace:Raycast(middle.Position, Vector3.new(0, -5, 0), raycastParams)
+    if ground_ray then
+        distance_to_ground = (middle.Position - ground_ray.Position).Magnitude
+        ground_normal = ground_ray.Normal
+        if distance_to_ground <= 3.6 then
+            on_ground = true
+        end
+    end
+
+    local cameralook = Camera.CFrame.LookVector
+    cameralook = Vector3.new(cameralook.X, 0, cameralook.Z)
+    local direction = Vector3.zero
+    
+    direction = UserInputService:IsKeyDown(Enum.KeyCode.W) and direction + cameralook or direction;
+    direction = UserInputService:IsKeyDown(Enum.KeyCode.S) and direction - cameralook or direction;
+    direction = UserInputService:IsKeyDown(Enum.KeyCode.D) and direction + Vector3.new(- cameralook.Z, 0, cameralook.X) or direction;
+    direction = UserInputService:IsKeyDown(Enum.KeyCode.A) and direction + Vector3.new(cameralook.Z, 0, - cameralook.X) or direction;
+    
+    if direction ~= Vector3.zero then
+        direction = direction.Unit
+    end
+
+    if direction ~= Vector3.zero then
+        local wall_ray = workspace:Raycast(middle.Position, direction * 3.5, raycastParams)
+        if wall_ray then
+            local plane_normal = wall_ray.Normal
+            direction = direction - (direction:Dot(plane_normal) * plane_normal)
+            if direction ~= Vector3.zero then
+                direction = direction.Unit
+            end
+        end
+    end
+
+    if bhop_enabled and UserInputService:IsKeyDown(Enum.KeyCode.C) and UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+        if on_ground and not is_jumping then
+            start_y = middle.Position.Y
+            is_jumping = true
+            wtf = 0
+            niga = speed
+        end
+
+        if is_jumping then
+            wtf = wtf + delta
+            
+            if wtf >= bhop_duration or (wtf > 0.1 and on_ground) then
+                is_jumping = false
+                wtf = 0
+            end
+            
+            niga = math.clamp(niga - delta * 6, 25, speed)
+            local progress = math.clamp(wtf / bhop_duration, 0, 1)
+            local vertical_velocity = math.cos(progress * math.pi) * bhop_height
+            
+            local current_height = middle.Position.Y
+            local current_offset = current_height - start_y
+            
+            if current_offset >= bhop_max_height and vertical_velocity > 0 then
+                vertical_velocity = -vertical_velocity * 0.5
+            end
+            
+            middle.AssemblyLinearVelocity = Vector3.new(
+                direction.X * niga,
+                vertical_velocity,
+                direction.Z * niga
+            )
+        else
+            local pull_down = (distance_to_ground > 3.1) and -12 or middle.AssemblyLinearVelocity.Y
+            middle.AssemblyLinearVelocity = Vector3.new(
+                direction.X * speed,
+                pull_down,
+                direction.Z * speed
+            )
+        end
+    else
+        if forcesprint and middle then
+            if on_ground then
+                local horizontal_vel = direction * speed
+                local slope_vel = horizontal_vel - (horizontal_vel:Dot(ground_normal) * ground_normal)
+                
+                middle.AssemblyLinearVelocity = Vector3.new(
+                    slope_vel.X,
+                    slope_vel.Y,
+                    slope_vel.Z
+                )
+            else
+                middle.AssemblyLinearVelocity = Vector3.new(
+                    direction.X * speed,
+                    middle.AssemblyLinearVelocity.Y,
+                    direction.Z * speed
+                )
+            end
+        end
+        niga = speed
+        wtf = 0
+        is_jumping = false
+    end
+end)
+
+local ESP_INTERVAL = 1 / 90 
+local espLastTick = 0
+
+SafeConnect(RunService.Heartbeat, function()
+    local now = tick() 
+    if now - espLastTick < ESP_INTERVAL then return end 
+    espLastTick = now
+    
+    local camPos = Camera.CFrame.Position 
+    local s = ESP.settings
+    
+    for m, d in next, ESP.cache.boxes do
+        local function hide() 
+            d.nameText.Visible = false 
+            d.distText.Visible = false 
+            d.weapText.Visible = false 
+            d.combinedFrame.Visible = false
+        end
+        
+        if not m or not m.Parent or not s.enabled or not d.hrp or not d.hrp.Parent then 
+            hide() 
+            updateChams(m, false) 
+            continue 
+        end
+        
+        local hrpPos = d.hrp.Position
+        local distSq = (hrpPos.X - camPos.X)^2 + (hrpPos.Y - camPos.Y)^2 + (hrpPos.Z - camPos.Z)^2
+        
+        if distSq > s.renderDistance * s.renderDistance or shouldSkip(m) then 
+            hide() 
+            updateChams(m, false) 
+            continue 
+        end
+        
+        if now - d.lastCache > 0.25 then 
+            d.isPlayer = ESP_IsPlayer(m) 
+            d.isSleeper = ESP_IsSleeper(m) 
+            d.cachedWeapon = detectWeapon(m)
+            
+            local currentArmor = {}
+            local armorFolder = m:FindFirstChild("Armor")
+            if armorFolder then
+                for _, item in ipairs(armorFolder:GetChildren()) do
+                    table.insert(currentArmor, item.Name)
+                end
+            end
+
+            local armorChanged = #currentArmor ~= #d.lastArmorList
+            if not armorChanged then
+                for i = 1, #currentArmor do
+                    if currentArmor[i] ~= d.lastArmorList[i] then
+                        armorChanged = true
+                        break
+                    end
+                end
+            end
+            
+            if armorChanged then
+                d.lastArmorList = currentArmor
+                d.armorNeedsRebuild = true 
+            end
+            
+            d.lastCache = now 
+        end
+        
+        local topPos, topVis = Camera:WorldToViewportPoint(hrpPos + ESP.const.V3_UP)
+        local bottomPos = Camera:WorldToViewportPoint(hrpPos - ESP.const.V3_DN)
+        
+        if not topVis then 
+            hide() 
+            updateChams(m, false) 
+            continue 
+        end
+        
+        local isWithinChamRange = distSq <= (s.chamsRenderDistance * s.chamsRenderDistance)
+        updateChams(m, isWithinChamRange)
+        
+        local h = bottomPos.Y - topPos.Y 
+        if h < 5 then hide() continue end
+        
+        local px, py, dist = topPos.X, topPos.Y + h * 0.5, math.floor(math.sqrt(distSq))
+        local currentWeapon = d.cachedWeapon
+
+        if s.weaponImageEnabled and currentWeapon ~= "None" then
+            if d.lastWeapName ~= currentWeapon then
+                d.lastWeapName = currentWeapon
+                
+                if d.activeVisual then
+                    d.activeVisual:Destroy()
+                    d.activeVisual = nil
+                end
+                
+                local template = ESP.cache.images[currentWeapon]
+                if template == nil then
+                    local item = findItemInShared(currentWeapon)
+                    if item then
+                        local visual = prepareViewport(item)
+                        if visual then
+                            ESP.cache.images[currentWeapon] = visual
+                            template = visual
+                        end
+                    end
+                    if template == nil then
+                        ESP.cache.images[currentWeapon] = false
+                    end
+                end
+                
+                if template then
+                    local cell = Instance.new("Frame")
+                    cell.Name = "00_Weapon"
+                    cell.BackgroundTransparency = 1
+                    cell.Size = UDim2.new(0, 32, 0, 32)
+                    
+                    local clonedVisual = template:Clone()
+                    local cam = clonedVisual:FindFirstChildOfClass("Camera")
+                    if cam then clonedVisual.CurrentCamera = cam end
+                    clonedVisual.Parent = cell
+                    
+                    cell.Parent = d.combinedFrame
+                    d.activeVisual = cell
+                end
+            end
+        else
+            if d.activeVisual then
+                d.activeVisual:Destroy()
+                d.activeVisual = nil
+                d.lastWeapName = ""
+            end
+        end
+
+        if s.armorImageEnabled then
+            if d.armorNeedsRebuild then
+                d.armorNeedsRebuild = false
+                
+                for _, av in ipairs(d.activeArmorVisuals) do
+                    av:Destroy()
+                end
+                d.activeArmorVisuals = {}
+                
+                for i, armorName in ipairs(d.lastArmorList) do
+                    local template = ESP.cache.images[armorName]
+                    if template == nil then
+                        local item = findItemInShared(armorName)
+                        if item then
+                            local visual = prepareViewport(item)
+                            if visual then
+                                ESP.cache.images[armorName] = visual
+                                template = visual
+                            end
+                        end
+                        if template == nil then
+                            ESP.cache.images[armorName] = false
+                        end
+                    end
+                    
+                    if template then
+                        local cell = Instance.new("Frame")
+                        cell.Name = string.format("01_Armor_%02d", i)
+                        cell.BackgroundTransparency = 1
+                        cell.Size = UDim2.new(0, 32, 0, 32)
+                        
+                        local clonedVisual = template:Clone()
+                        local cam = clonedVisual:FindFirstChildOfClass("Camera")
+                        if cam then clonedVisual.CurrentCamera = cam end
+                        clonedVisual.Parent = cell
+                        
+                        cell.Parent = d.combinedFrame
+                        table.insert(d.activeArmorVisuals, cell)
+                    end
+                end
+            end
+        else
+            if #d.activeArmorVisuals > 0 then
+                for _, av in ipairs(d.activeArmorVisuals) do av:Destroy() end
+                d.activeArmorVisuals = {}
+                d.lastArmorList = {}
+                d.armorNeedsRebuild = false
+            end
+        end
+
+        local total3DItems = (d.activeVisual and 1 or 0) + #d.activeArmorVisuals
+        local show3DFrame = total3DItems > 0
+        
+        if show3DFrame then
+            d.combinedFrame.Size = UDim2.new(0, total3DItems * 36 - 4, 0, 32)
+            
+            if s.nameEnabled then
+                d.nameText.Text = d.isSleeper and "Sleeper" or (d.isPlayer and "Player" or "Bot")
+                d.nameText.Position = Vector2.new(px, py - h * 0.5 - 50)
+                d.nameText.Color = s.nameColor
+                d.nameText.Visible = true
+                
+                d.combinedFrame.Position = UDim2.new(0, px - (d.combinedFrame.Size.X.Offset / 2), 0, py - h * 0.5 - 34)
+            else
+                d.nameText.Visible = false
+                d.combinedFrame.Position = UDim2.new(0, px - (d.combinedFrame.Size.X.Offset / 2), 0, py - h * 0.5 - 34)
+            end
+            d.combinedFrame.Visible = true
+        else
+            d.combinedFrame.Visible = false
+            if s.nameEnabled then
+                d.nameText.Text = d.isSleeper and "Sleeper" or (d.isPlayer and "Player" or "Bot")
+                d.nameText.Position = Vector2.new(px, py - h * 0.5 - 16)
+                d.nameText.Color = s.nameColor
+                d.nameText.Visible = true
+            else
+                d.nameText.Visible = false
+            end
+        end
+
+        if s.distanceEnabled then 
+            d.distText.Text = dist .. "m" 
+            d.distText.Position = Vector2.new(px, py + h * 0.5 + 4) 
+            d.distText.Color = s.distColor 
+            d.distText.Visible = true 
+        else 
+            d.distText.Visible = false 
+        end
+        
+        local textOff = s.distanceEnabled and 18 or 4
+        
+        if s.weaponEnabled then 
+            d.weapText.Text = GetCleanWeaponName(currentWeapon) 
+            d.weapText.Position = Vector2.new(px, py + h * 0.5 + textOff) 
+            d.weapText.Color = s.weapColor 
+            d.weapText.Visible = true 
+        else 
+            d.weapText.Visible = false 
+        end
+    end
+    
+    if s.oreEnabled and s.enabled then
+        for m, d in next, ESP.oreCache do
+            if not m or not m.Parent or not d.part or not d.part.Parent then
+                if d.text then d.text.Visible = false end
+                continue
+            end
+            
+            local currentType, activePart = getOreTypeAndPart(m)
+            if not currentType then
+                d.text.Visible = false
+                continue
+            end
+            
+            if activePart then d.part = activePart end
+            
+            local oreActive = false
+            local oreColor = Color3.fromRGB(255, 255, 255)
+            
+            if currentType == "Stone" and s.oreStoneEnabled then
+                oreActive = true
+                oreColor = s.oreStoneColor
+            elseif currentType == "Iron" and s.oreIronEnabled then
+                oreActive = true
+                oreColor = s.oreIronColor
+            elseif currentType == "Nitrate" and s.oreNitrateEnabled then
+                oreActive = true
+                oreColor = s.oreNitrateColor
+            end
+            
+            if not oreActive then
+                d.text.Visible = false
+                continue
+            end
+            
+            local orePos = d.part.Position
+            local distSq = (orePos.X - camPos.X)^2 + (orePos.Y - camPos.Y)^2 + (orePos.Z - camPos.Z)^2
+            
+            if distSq > s.oreRenderDistance * s.oreRenderDistance then
+                d.text.Visible = false
+                continue
+            end
+            
+            local screenPos, visible = Camera:WorldToViewportPoint(orePos)
+            if not visible then
+                d.text.Visible = false
+                continue
+            end
+            
+            local dist = math.floor(math.sqrt(distSq))
+            d.text.Text = currentType .. " " .. dist .. "m"
+            d.text.Position = Vector2.new(screenPos.X, screenPos.Y)
+            d.text.Color = oreColor
+            d.text.Font = s.font
+            d.text.Visible = true
+        end
+    else
+        for _, d in next, ESP.oreCache do
+            if d.text then d.text.Visible = false end
+        end
+    end
+
+    if s.lootEnabled and s.enabled then
+        for m, d in next, ESP.lootCache do
+            if not m or not m.Parent or not d.part or not d.part.Parent then
+                if d.text then d.text.Visible = false end
+                continue
+            end
+            
+            local currentType, activePart = getLootTypeAndPart(m)
+            if not currentType then
+                d.text.Visible = false
+                continue
+            end
+            
+            if activePart then d.part = activePart end
+            
+            local lootActive = false
+            local lootColor = Color3.fromRGB(255, 255, 255)
+            
+            if currentType == "Vending Machine" and s.lootVendingEnabled then
+                lootActive = true
+                lootColor = s.lootVendingColor
+            elseif currentType == "Safe" and s.lootSafeEnabled then
+                lootActive = true
+                lootColor = s.lootSafeColor
+            elseif currentType == "Cardboard Box" and s.lootBoxEnabled then
+                lootActive = true
+                lootColor = s.lootBoxColor
+            elseif (currentType == "Crate" or currentType == "Iron Crate") and s.lootCrateEnabled then
+                lootActive = true
+                lootColor = s.lootCrateColor
+            elseif currentType == "Oil Gasoline" and s.lootBarrelEnabled then
+                lootActive = true
+                lootColor = s.lootBarrelColor
+            elseif currentType == "Scrap Barrel" and s.lootPrimEnabled then
+                lootActive = true
+                lootColor = s.lootPrimColor
+            elseif currentType == "Gasoline" and s.lootGasEnabled then
+                lootActive = true
+                lootColor = s.lootGasColor
+            elseif currentType == "Military Crate" and s.lootMilitaryEnabled then
+                lootActive = true
+                lootColor = s.lootMilitaryColor
+            elseif currentType == "Backpack" and s.lootBackpackEnabled then
+                lootActive = true
+                lootColor = s.lootBackpackColor
+            end
+            
+            if not lootActive then
+                d.text.Visible = false
+                continue
+            end
+            
+            local lootPos = d.part.Position
+            local distSq = (lootPos.X - camPos.X)^2 + (lootPos.Y - camPos.Y)^2 + (lootPos.Z - camPos.Z)^2
+            
+            if distSq > s.lootRenderDistance * s.lootRenderDistance then
+                d.text.Visible = false
+                continue
+            end
+            
+            local screenPos, visible = Camera:WorldToViewportPoint(lootPos)
+            if not visible then
+                d.text.Visible = false
+                continue
+            end
+            
+            local dist = math.floor(math.sqrt(distSq))
+            d.text.Text = currentType .. " " .. dist .. "m"
+            d.text.Position = Vector2.new(screenPos.X, screenPos.Y)
+            d.text.Color = lootColor
+            d.text.Font = s.font
+            d.text.Visible = true
+        end
+    else
+        for _, d in next, ESP.lootCache do
+            if d.text then d.text.Visible = false end
+        end
+    end
+end)
+
+SafeConnect(workspace.ChildAdded, function(obj) 
+    if obj:IsA("Model") then 
+        checkAndAddObject(obj)
+    end 
+end)
+
+SafeConnect(workspace.ChildRemoved, function(obj) 
+    if obj:IsA("Model") then 
+        local d = ESP.cache.boxes[obj] 
+        if d then destroyEntry(obj, d) end 
+        destroyViewportCham(obj)
+        ESP.cache.weapon[obj] = nil 
+        ESP.cache.weaponTime[obj] = nil 
+        ESP.cache.player[obj] = nil 
+        
+        destroyOreEntry(obj)
+        destroyLootEntry(obj)
+    end 
+end)
+
+task.spawn(function() 
+    while shared.SolyankaSessionToken == CurrentSessionToken do 
+        task.wait(15) 
+        for m in next, ESP.cache.weapon do if not m or not m.Parent then ESP.cache.weapon[m] = nil ESP.cache.weaponTime[m] = nil end end 
+        for m in next, ESP.cache.sleep do if not m or not m.Parent then ESP.cache.sleep[m] = nil end end 
+        for m in next, ESP.cache.player do if not m or not m.Parent then ESP.cache.player[m] = nil end end 
+        for m, d in next, ESP.cache.boxes do if not m or not m.Parent then destroyEntry(m, d) end end 
+        for m, c in next, ESP.cache.chams do if not m or not m.Parent then destroyViewportCham(m) end end 
+        for m, d in next, ESP.oreCache do if not m or not m.Parent then destroyOreEntry(m) end end 
+        for m, d in next, ESP.lootCache do if not m or not m.Parent then destroyLootEntry(m) end end 
+    end 
+end)
+
+for _, m in next, workspace:GetChildren() do 
+    if m:IsA("Model") then 
+        task.spawn(function() 
+            checkAndAddObject(m)
+        end) 
+    end 
+end
+
+local reqFunc = (syn and syn.request) or (http and http.request) or request or http_request
+local Library = loadstring(reqFunc({Url = "https://raw.githubusercontent.com/Popka0992/sourse/refs/heads/main/ui", Method = "GET"}).Body)()
+
+local Window = Library:Window({
+    Logo = "71026055710922",
+    FadeTime = 0.3,
+})
+
+local Watermark = Library:Watermark("Solyanka.cc")
+local KeybindList = Library:KeybindList()
+
+do 
+    local CombatPage = Window:Page({Name = "Combat", SubPages = true})
+    local VisualsPage = Window:Page({Name = "Visuals", SubPages = true})
+    local MiscPage = Window:Page({Name = "Misc", SubPages = true})
+    local PlayersPage = Window:Page({Name = "Players", Columns = 2})
+    local SettingsPage = Library:CreateSettingsPage(Window, Watermark, KeybindList) 
+
+    do
+        local AimbotSubPage = CombatPage:SubPage({Name = "Aimbot", Columns = 2})
+        local HitboxSubPage = CombatPage:SubPage({Name = "Hitbox Expander", Columns = 2})
+
+        do
+            local AimbotSection = AimbotSubPage:Section({Name = "Aimbot Settings", Side = 1}) do
+                local AimToggle = AimbotSection:Toggle({
+                    Name = "Enable Aimbot",
+                    Flag = "AimEnabled",
+                    Default = false,
+                    Callback = function(Value)
+                        AimbotSettings.Enabled = Value
+                    end
+                })
+
+                AimToggle:Keybind({
+                    Default = Enum.UserInputType.MouseButton2,
+                    Flag = "AimKeybind",
+                    Callback = function(Value)
+                        AimbotSettings.Keybind = Value
+                    end
+                })
+
+                AimbotSection:Dropdown({
+                    Name = "Target Bone",
+                    Flag = "AimTargetBone",
+                    Items = {"Head", "Torso", "HumanoidRootPart"},
+                    Default = "Head",
+                    Multi = false,
+                    Callback = function(Value)
+                        AimbotSettings.TargetPart = Value
+                    end
+                })
+
+                AimbotSection:Slider({
+                    Name = "Smoothness",
+                    Flag = "AimSmooth",
+                    Min = 1,
+                    Max = 20,
+                    Default = 2,
+                    Decimals = 0.1,
+                    Callback = function(Value)
+                        AimbotSettings.Smoothness = Value
+                    end
+                })
+
+                local FovToggle = AimbotSection:Toggle({
+                    Name = "Show FOV Circle",
+                    Flag = "AimShowFov",
+                    Default = false,
+                    Callback = function(Value)
+                        AimbotSettings.FovEnabled = Value
+                    end
+                })
+                FovToggle:Colorpicker({
+                    Name = "FOV Circle Color",
+                    Flag = "AimFovCol",
+                    Default = Color3.fromRGB(255, 0, 0),
+                    Callback = function(v) 
+                        AimbotSettings.FovColor = v 
+                    end
+                })
+
+                AimbotSection:Slider({
+                    Name = "FOV Radius",
+                    Flag = "AimFovRadius",
+                    Min = 10,
+                    Max = 800,
+                    Default = 150,
+                    Suffix = "px",
+                    Callback = function(Value)
+                        AimbotSettings.FovRadius = Value
+                    end
+                })
+
+                AimbotSection:Toggle({
+                    Name = "Team Check",
+                    Flag = "AimTeamCheck",
+                    Default = false,
+                    Callback = function(Value)
+                        AimbotSettings.TeamCheck = Value
+                    end
+                })
+
+                AimbotSection:Toggle({
+                    Name = "Wall Check",
+                    Flag = "AimWallCheck",
+                    Default = false,
+                    Callback = function(Value)
+                        AimbotSettings.WallCheck = Value
+                    end
+                })
+
+                AimbotSection:Toggle({
+                    Name = "AI Check",
+                    Flag = "AimAiCheck",
+                    Default = false,
+                    Callback = function(Value)
+                        AimbotSettings.AiCheck = Value
+                    end
+                })
+
+                AimbotSection:Toggle({
+                    Name = "Sleeper Check",
+                    Flag = "AimSleepCheck",
+                    Default = false,
+                    Callback = function(Value)
+                        AimbotSettings.SleepCheck = Value
+                    end
+                })
+            end
+
+            local PredictionSection = AimbotSubPage:Section({Name = "Aimbot Prediction", Side = 2}) do
+                PredictionSection:Toggle({
+                    Name = "Enable Prediction",
+                    Flag = "PredEnabled",
+                    Default = false,
+                    Callback = function(Value)
+                        AimbotSettings.PredictionEnabled = Value
+                    end
+                })
+
+                PredictionSection:Slider({
+                    Name = "Vertical Scale Height",
+                    Flag = "PredScaleUp",
+                    Min = 0,
+                    Max = 2,
+                    Default = 0.5,
+                    Decimals = 0.05,
+                    Callback = function(Value)
+                        AimbotSettings.PredictionScaleUp = Value
+                    end
+                })
+            end
+        end
+
+        do
+            local HitboxSection = HitboxSubPage:Section({Name = "Hitbox Expander Main", Side = 1}) do
+                local HitboxToggle
+                HitboxToggle = HitboxSection:Toggle({
+                    Name = "Enable Hitbox Expander",
+                    Flag = "HboxEnabled",
+                    Default = false,
+                    Callback = function(v)
+                        HitboxSettings.Enabled = v
+                        if not v then
+                            HitboxCache.MixToken = HitboxCache.MixToken + 1
+                            Hitbox_RestoreAll()
+                        else
+                            if HitboxSettings.TargetPart == "Mix" then
+                                Hitbox_StartMixLoop()
+                            else
+                                Hitbox_UpdateAll()
+                            end
+                        end
+                    end
+                })
+
+                HitboxToggle:Keybind({
+                    Default = Enum.KeyCode.H,
+                    Flag = "HboxKeybind",
+                    Mode = "Toggle",
+                    Callback = function(Value)
+                        if HitboxToggle then
+                            HitboxToggle:Set(Value)
+                        end
+                    end
+                })
+
+                HitboxSection:Dropdown({
+                    Name = "Target Limb",
+                    Flag = "HboxTargetLimb",
+                    Items = {"Head", "Torso", "Mix"},
+                    Default = "Head",
+                    Multi = false,
+                    Callback = function(v)
+                        local prevPart = HitboxSettings.TargetPart
+                        HitboxSettings.TargetPart = v
+                        
+                        if not HitboxSettings.Enabled then return end
+                        
+                        if v == "Mix" then
+                            Hitbox_StartMixLoop()
+                        else
+                            if prevPart == "Mix" then
+                                HitboxCache.MixToken = HitboxCache.MixToken + 1
+                            end
+                            task.wait(0.05)
+                            Hitbox_UpdateAll()
+                        end
+                    end
+                })
+
+                HitboxSection:Slider({
+                    Name = "Hitbox Size X",
+                    Flag = "HboxSizeX",
+                    Min = 1,
+                    Max = 15,
+                    Default = 4,
+                    Suffix = " studs",
+                    Decimals = 0.1,
+                    Callback = function(v)
+                        HitboxSettings.SizeX = v
+                        if HitboxSettings.Enabled and HitboxSettings.TargetPart ~= "Mix" then Hitbox_UpdateAll() end
+                    end
+                })
+
+                HitboxSection:Slider({
+                    Name = "Hitbox Size Y",
+                    Flag = "HboxSizeY",
+                    Min = 1,
+                    Max = 15,
+                    Default = 4,
+                    Suffix = " studs",
+                    Decimals = 0.1,
+                    Callback = function(v)
+                        HitboxSettings.SizeY = v
+                        if HitboxSettings.Enabled and HitboxSettings.TargetPart ~= "Mix" then Hitbox_UpdateAll() end
+                    end
+                })
+
+                HitboxSection:Slider({
+                    Name = "Hitbox Size Z",
+                    Flag = "HboxSizeZ",
+                    Min = 1,
+                    Max = 15,
+                    Default = 4,
+                    Suffix = " studs",
+                    Decimals = 0.1,
+                    Callback = function(v)
+                        HitboxSettings.SizeZ = v
+                        if HitboxSettings.Enabled and HitboxSettings.TargetPart ~= "Mix" then Hitbox_UpdateAll() end
+                    end
+                })
+            end
+
+            local HitboxStyleSection = HitboxSubPage:Section({Name = "Styling & Checks", Side = 2}) do
+                local HboxVisualToggle = HitboxStyleSection:Toggle({
+                    Name = "Visualize Hitboxes",
+                    Flag = "HboxVisualize",
+                    Default = false,
+                })
+                HboxVisualToggle:Colorpicker({
+                    Name = "Hitbox Color",
+                    Flag = "HboxColor",
+                    Default = Color3.fromRGB(255, 0, 0),
+                    Callback = function(v)
+                        HitboxSettings.Color = v
+                        if HitboxSettings.Enabled and HitboxSettings.TargetPart ~= "Mix" then Hitbox_UpdateAll() end
+                    end
+                })
+
+                HitboxStyleSection:Slider({
+                    Name = "Hitbox Transparency",
+                    Flag = "HboxTransparency",
+                    Min = 0,
+                    Max = 1,
+                    Default = 0.5,
+                    Decimals = 0.05,
+                    Callback = function(v)
+                        HitboxSettings.Transparency = v
+                        if HitboxSettings.Enabled and HitboxSettings.TargetPart ~= "Mix" then Hitbox_UpdateAll() end
+                    end
+                })
+
+                HitboxStyleSection:Toggle({
+                    Name = "Can Collide",
+                    Flag = "HboxCanCollide",
+                    Default = false,
+                    Callback = function(v)
+                        HitboxSettings.CanCollide = v
+                        if HitboxSettings.Enabled and HitboxSettings.TargetPart ~= "Mix" then Hitbox_UpdateAll() end
+                    end
+                })
+
+                HitboxStyleSection:Slider({
+                    Name = "Mix Switch Speed",
+                    Flag = "HboxMixSpeed",
+                    Min = 0.1,
+                    Max = 5,
+                    Default = 1,
+                    Decimals = 0.1,
+                    Callback = function(v)
+                        HitboxSettings.MixSpeed = v
+                    end
+                })
+
+                HitboxStyleSection:Toggle({
+                    Name = "Sleep Check",
+                    Flag = "HboxSleepCheck",
+                    Default = false,
+                    Callback = function(v)
+                        HitboxSettings.SleepCheck = v
+                        if HitboxSettings.Enabled and HitboxSettings.TargetPart ~= "Mix" then Hitbox_UpdateAll() end
+                    end
+                })
+
+                HitboxStyleSection:Toggle({
+                    Name = "AI Check",
+                    Flag = "HboxAiCheck",
+                    Default = false,
+                    Callback = function(v)
+                        HitboxSettings.AiCheck = v
+                        if HitboxSettings.Enabled and HitboxSettings.TargetPart ~= "Mix" then Hitbox_UpdateAll() end
+                    end
+                })
+
+                HitboxStyleSection:Toggle({
+                    Name = "Team Check",
+                    Flag = "HboxTeamCheck",
+                    Default = false,
+                    Callback = function(v)
+                        HitboxSettings.TeamCheck = v
+                        if HitboxSettings.Enabled and HitboxSettings.TargetPart ~= "Mix" then Hitbox_UpdateAll() end
+                    end
+                })
+            end
+        end
+    end
+
+    do
+        local PlayersEspSubPage = VisualsPage:SubPage({Name = "Players ESP", Columns = 2})
+        local ViewmodelSubPage = VisualsPage:SubPage({Name = "Viewmodel", Columns = 2})
+        local WorldEspSubPage = VisualsPage:SubPage({Name = "World & Objects", Columns = 2})
+
+        do
+            local EspSection = PlayersEspSubPage:Section({Name = "Player ESP Config", Side = 1}) do
+                local EspToggle
+                EspToggle = EspSection:Toggle({
+                    Name = "ESP Master Switch",
+                    Flag = "EspEnabled",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.enabled = Value
+                    end
+                })
+
+                EspToggle:Keybind({
+                    Default = Enum.KeyCode.O,
+                    Flag = "EspKeybind",
+                    Mode = "Toggle",
+                    Callback = function(Value)
+                        if EspToggle then
+                            EspToggle:Set(Value)
+                        end
+                    end
+                })
+
+                local NamesToggle = EspSection:Toggle({
+                    Name = "Render Names",
+                    Flag = "EspShowNames",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.nameEnabled = Value
+                    end
+                })
+                NamesToggle:Colorpicker({
+                    Name = "Name Color",
+                    Flag = "ESPNameCol",
+                    Default = Color3.fromRGB(255, 255, 255),
+                    Callback = function(v) 
+                        ESP.settings.nameColor = v 
+                    end
+                })
+
+                local DistToggle = EspSection:Toggle({
+                    Name = "Render Distance",
+                    Flag = "EspShowDistance",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.distanceEnabled = Value
+                    end
+                })
+                DistToggle:Colorpicker({
+                    Name = "Distance Color",
+                    Flag = "ESPDistCol",
+                    Default = Color3.fromRGB(0, 220, 255),
+                    Callback = function(v) 
+                        ESP.settings.distColor = v 
+                    end
+                })
+
+                local WeaponToggle = EspSection:Toggle({
+                    Name = "Render Weapon Text",
+                    Flag = "EspShowWeapon",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.weaponEnabled = Value
+                    end
+                })
+                WeaponToggle:Colorpicker({
+                    Name = "Weapon Color",
+                    Flag = "ESPWeapCol",
+                    Default = Color3.fromRGB(255, 215, 0),
+                    Callback = function(v) 
+                        ESP.settings.weapColor = v 
+                    end
+                })
+
+                EspSection:Toggle({
+                    Name = "Render Weapon Image",
+                    Flag = "EspShowWeaponImage",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.weaponImageEnabled = Value
+                    end
+                })
+
+                local ArmorToggle = EspSection:Toggle({
+                    Name = "Render Armor Image",
+                    Flag = "EspShowArmorImage",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.armorImageEnabled = Value
+                    end
+                })
+                ArmorToggle:Colorpicker({
+                    Name = "Armor Outline Color",
+                    Flag = "ESPArmorCol",
+                    Default = Color3.fromRGB(0, 191, 255),
+                    Callback = function(v)
+                        ESP.settings.armorColor = v
+                    end
+                })
+
+                local ChamsToggle = EspSection:Toggle({
+                    Name = "Render Chams",
+                    Flag = "EspShowChams",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.chamsEnabled = Value
+                        if not Value then
+                            local toDestroy = {}
+                            for m, _ in pairs(ESP.cache.chams) do
+                                table.insert(toDestroy, m)
+                            end
+                            for _, m in ipairs(toDestroy) do
+                                destroyViewportCham(m)
+                            end
+                        end
+                    end
+                })
+                ChamsToggle:Colorpicker({
+                    Name = "Fill Color",
+                    Flag = "ESPChamCol",
+                    Default = Color3.fromRGB(0, 220, 255),
+                    Callback = function(v) 
+                        ESP.settings.chamsColor = v 
+                    end
+                })
+
+                EspSection:Slider({
+                    Name = "Fill Transparency",
+                    Flag = "EspChamsTransparency",
+                    Min = 0,
+                    Max = 1,
+                    Default = 0.50,
+                    Decimals = 0.01,
+                    Callback = function(Value)
+                        ESP.settings.chamsTransparency = Value
+                    end
+                })
+
+                EspSection:Slider({
+                    Name = "Chams Render Distance",
+                    Flag = "EspChamsRenderDistance",
+                    Min = 50,
+                    Max = 1000,
+                    Default = 250,
+                    Suffix = "m",
+                    Callback = function(Value)
+                        ESP.settings.chamsRenderDistance = Value
+                    end
+                })
+            end
+
+            local FilterSection = PlayersEspSubPage:Section({Name = "Filters & Styling", Side = 2}) do
+                FilterSection:Toggle({
+                    Name = "Sleeper Check",
+                    Flag = "EspSleeperCheck",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.sleepCheck = Value
+                    end
+                })
+
+                FilterSection:Toggle({
+                    Name = "Team Check",
+                    Flag = "EspTeamCheck",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.teamCheck = Value
+                    end
+                })
+
+                FilterSection:Toggle({
+                    Name = "NPC / Bot Check",
+                    Flag = "EspNPCCheck",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.aiCheck = Value
+                    end
+                })
+
+                FilterSection:Slider({
+                    Name = "Max Render Distance",
+                    Flag = "EspMaxRenderDistance",
+                    Min = 100,
+                    Max = 5000,
+                    Default = 1000,
+                    Suffix = "m",
+                    Decimals = 10,
+                    Callback = function(Value)
+                        ESP.settings.renderDistance = Value
+                    end
+                })
+
+                FilterSection:Dropdown({
+                    Name = "ESP Font",
+                    Flag = "EspFontFamily",
+                    Items = {"UI", "System", "Plex", "Monospace"},
+                    Default = "Plex",
+                    Multi = false,
+                    Callback = function(Value)
+                        local mappedIndex = FontMapping[Value] or 2
+                        updateAllFonts(mappedIndex)
+                    end
+                })
+            end
+        end
+
+        do
+            local VMChamsSection = ViewmodelSubPage:Section({Name = "Hands & Weapons Chams", Side = 1}) do
+                local HandChamsToggle = VMChamsSection:Toggle({
+                    Name = "Enable Hand Chams",
+                    Flag = "VMHandChams",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.handChamsEnabled = Value
+                    end
+                })
+                HandChamsToggle:Colorpicker({
+                    Name = "Hand Color",
+                    Flag = "VMHandCol",
+                    Default = Color3.fromRGB(0, 255, 255),
+                    Callback = function(v)
+                        ESP.settings.handChamsColor = v
+                    end
+                })
+                VMChamsSection:Dropdown({
+                    Name = "Hand Material Style",
+                    Flag = "VMHandMat",
+                    Items = {"Neon", "ForceField", "Glass", "Plastic", "SmoothPlastic", "DiamondPlate"},
+                    Default = "ForceField",
+                    Multi = false,
+                    Callback = function(Value)
+                        ESP.settings.handChamsMaterial = Value
+                    end
+                })
+                VMChamsSection:Slider({
+                    Name = "Hand Transparency",
+                    Flag = "VMHandTrans",
+                    Min = 0,
+                    Max = 1,
+                    Default = 0.5,
+                    Decimals = 0.05,
+                    Callback = function(Value)
+                        ESP.settings.handChamsTransparency = Value
+                    end
+                })
+
+                local WeaponChamsToggle = VMChamsSection:Toggle({
+                    Name = "Enable Weapon Chams",
+                    Flag = "VMWeaponChams",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.weaponChamsEnabled = Value
+                    end
+                })
+                WeaponChamsToggle:Colorpicker({
+                    Name = "Weapon Color",
+                    Flag = "VMWeaponCol",
+                    Default = Color3.fromRGB(255, 0, 255),
+                    Callback = function(v)
+                        ESP.settings.weaponChamsColor = v
+                    end
+                })
+                VMChamsSection:Dropdown({
+                    Name = "Weapon Material Style",
+                    Flag = "VMWeaponMat",
+                    Items = {"Neon", "ForceField", "Glass", "Plastic", "SmoothPlastic", "DiamondPlate"},
+                    Default = "ForceField",
+                    Multi = false,
+                    Callback = function(Value)
+                        ESP.settings.weaponChamsMaterial = Value
+                    end
+                })
+                VMChamsSection:Slider({
+                    Name = "Weapon Transparency",
+                    Flag = "VMWeaponTrans",
+                    Min = 0,
+                    Max = 1,
+                    Default = 0.5,
+                    Decimals = 0.05,
+                    Callback = function(Value)
+                        ESP.settings.weaponChamsTransparency = Value
+                    end
+                })
+            end
+        end
+
+        do
+            local OreSection = WorldEspSubPage:Section({Name = "Ore ESP", Side = 1}) do
+                OreSection:Toggle({
+                    Name = "Enable Ore ESP",
+                    Flag = "OreEspEnabled",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.oreEnabled = Value
+                    end
+                })
+
+                local oreKeysMap = {
+                    ["Stone"] = "oreStoneEnabled",
+                    ["Iron"] = "oreIronEnabled",
+                    ["Nitrate"] = "oreNitrateEnabled"
+                }
+                
+                OreSection:Dropdown({
+                    Name = "Select Active Ores",
+                    Flag = "OreEspFilterDropdown",
+                    Items = {"Stone", "Iron", "Nitrate"},
+                    Default = {"Stone", "Iron", "Nitrate"},
+                    Multi = true,
+                    Callback = function(Value)
+                        parseMultiDropdown(Value, oreKeysMap)
+                    end
+                })
+
+                local OreStoneColOpt = OreSection:Toggle({
+                    Name = "Edit Stone Color",
+                    Flag = "OreStoneColOpt",
+                    Default = false,
+                })
+                OreStoneColOpt:Colorpicker({
+                    Name = "Stone Color",
+                    Flag = "OreStoneCol",
+                    Default = Color3.fromRGB(150, 150, 150),
+                    Callback = function(v) ESP.settings.oreStoneColor = v end
+                })
+
+                local OreIronColOpt = OreSection:Toggle({
+                    Name = "Edit Iron Color",
+                    Flag = "OreIronColOpt",
+                    Default = false,
+                })
+                OreIronColOpt:Colorpicker({
+                    Name = "Iron Color",
+                    Flag = "OreIronCol",
+                    Default = Color3.fromRGB(218, 165, 32),
+                    Callback = function(v) ESP.settings.oreIronColor = v end
+                })
+
+                local OreNitrateColOpt = OreSection:Toggle({
+                    Name = "Edit Nitrate Color",
+                    Flag = "OreNitrateColOpt",
+                    Default = false,
+                })
+                OreNitrateColOpt:Colorpicker({
+                    Name = "Nitrate Color",
+                    Flag = "OreNitrateCol",
+                    Default = Color3.fromRGB(240, 240, 240),
+                    Callback = function(v) ESP.settings.oreNitrateColor = v end
+                })
+
+                OreSection:Slider({
+                    Name = "Ore Render Distance",
+                    Flag = "OreRenderDist",
+                    Min = 100,
+                    Max = 5000,
+                    Default = 1000,
+                    Suffix = "m",
+                    Decimals = 10,
+                    Callback = function(Value)
+                        ESP.settings.oreRenderDistance = Value
+                    end
+                })
+            end
+
+            local LootSection = WorldEspSubPage:Section({Name = "Loot & Backpack ESP", Side = 2}) do
+                local LootToggle = LootSection:Toggle({
+                    Name = "Enable Loot ESP",
+                    Flag = "LootEspEnabled",
+                    Default = false,
+                    Callback = function(Value)
+                        ESP.settings.lootEnabled = Value
+                    end
+                })
+
+                local lootKeysMap = {
+                    ["Vending"] = "lootVendingEnabled",
+                    ["Safe"] = "lootSafeEnabled",
+                    ["Box"] = "lootBoxEnabled",
+                    ["Iron Crate"] = "lootCrateEnabled",
+                    ["Oil Gasoline"] = "lootBarrelEnabled",
+                    ["Scrap Barrel"] = "lootPrimEnabled",
+                    ["Gasoline"] = "lootGasEnabled",
+                    ["Military Crate"] = "lootMilitaryEnabled",
+                    ["Backpack"] = "lootBackpackEnabled"
+                }
+
+                LootSection:Dropdown({
+                    Name = "Select Active Loot",
+                    Flag = "LootEspFilterDropdown",
+                    Items = {"Vending", "Safe", "Box", "Iron Crate", "Oil Gasoline", "Scrap Barrel", "Gasoline", "Military Crate", "Backpack"},
+                    Default = {"Vending", "Safe", "Box", "Iron Crate", "Oil Gasoline", "Scrap Barrel", "Gasoline", "Military Crate", "Backpack"},
+                    Multi = true,
+                    Callback = function(Value)
+                        parseMultiDropdown(Value, lootKeysMap)
+                    end
+                })
+
+                local LootVendingColOpt = LootSection:Toggle({
+                    Name = "Color: Vending Machines",
+                    Flag = "LootVendingColOpt",
+                    Default = false,
+                })
+                LootVendingColOpt:Colorpicker({
+                    Name = "Vending Color",
+                    Flag = "LootVendingCol",
+                    Default = Color3.fromRGB(0, 255, 255),
+                    Callback = function(v) ESP.settings.lootVendingColor = v end
+                })
+
+                local LootSafeColOpt = LootSection:Toggle({
+                    Name = "Color: Safes",
+                    Flag = "LootSafeColOpt",
+                    Default = false,
+                })
+                LootSafeColOpt:Colorpicker({
+                    Name = "Safe Color",
+                    Flag = "LootSafeCol",
+                    Default = Color3.fromRGB(255, 215, 0),
+                    Callback = function(v) ESP.settings.lootSafeColor = v end
+                })
+
+                local LootBoxColOpt = LootSection:Toggle({
+                    Name = "Color: Cardboard Boxes",
+                    Flag = "LootBoxColOpt",
+                    Default = false,
+                })
+                LootBoxColOpt:Colorpicker({
+                    Name = "Box Color",
+                    Flag = "LootBoxCol",
+                    Default = Color3.fromRGB(210, 180, 140),
+                    Callback = function(v) ESP.settings.lootBoxColor = v end
+                })
+
+                local LootCrateColOpt = LootSection:Toggle({
+                    Name = "Color: Iron Crates",
+                    Flag = "LootCrateColOpt",
+                    Default = false,
+                })
+                LootCrateColOpt:Colorpicker({
+                    Name = "Iron Crate Color",
+                    Flag = "LootCrateCol",
+                    Default = Color3.fromRGB(160, 82, 45),
+                    Callback = function(v) ESP.settings.lootCrateColor = v end
+                })
+
+                local LootBarrelColOpt = LootSection:Toggle({
+                    Name = "Color: Oil Gasoline",
+                    Flag = "LootBarrelColOpt",
+                    Default = false,
+                })
+                LootBarrelColOpt:Colorpicker({
+                    Name = "Oil Gasoline Color",
+                    Flag = "LootBarrelCol",
+                    Default = Color3.fromRGB(255, 69, 0),
+                    Callback = function(v) ESP.settings.lootBarrelColor = v end
+                })
+
+                local LootPrimColOpt = LootSection:Toggle({
+                    Name = "Color: Scrap Barrels",
+                    Flag = "LootPrimColOpt",
+                    Default = false,
+                })
+                LootPrimColOpt:Colorpicker({
+                    Name = "Scrap Barrel Color",
+                    Flag = "LootPrimCol",
+                    Default = Color3.fromRGB(0, 255, 127),
+                    Callback = function(v) ESP.settings.lootPrimColor = v end
+                })
+
+                local LootGasColOpt = LootSection:Toggle({
+                    Name = "Color: Gasoline Canisters",
+                    Flag = "LootGasColOpt",
+                    Default = false,
+                })
+                LootGasColOpt:Colorpicker({
+                    Name = "Gasoline Color",
+                    Flag = "LootGasCol",
+                    Default = Color3.fromRGB(255, 75, 75),
+                    Callback = function(v) ESP.settings.lootGasColor = v end
+                })
+
+                local LootMilColOpt = LootSection:Toggle({
+                    Name = "Color: Military Crates",
+                    Flag = "LootMilColOpt",
+                    Default = false,
+                })
+                LootMilColOpt:Colorpicker({
+                    Name = "Military Crate Color",
+                    Flag = "LootMilCol",
+                    Default = Color3.fromRGB(75, 115, 65),
+                    Callback = function(v) ESP.settings.lootMilitaryColor = v end
+                })
+
+                local LootBackpackColOpt = LootSection:Toggle({
+                    Name = "Color: Backpacks (Dropped)",
+                    Flag = "LootBackpackColOpt",
+                    Default = false,
+                })
+                LootBackpackColOpt:Colorpicker({
+                    Name = "Backpack Color",
+                    Flag = "LootBackpackCol",
+                    Default = Color3.fromRGB(165, 113, 78),
+                    Callback = function(v) ESP.settings.lootBackpackColor = v end
+                })
+
+                LootSection:Slider({
+                    Name = "Loot Render Distance",
+                    Flag = "LootRenderDist",
+                    Min = 100,
+                    Max = 5000,
+                    Default = 1000,
+                    Suffix = "m",
+                    Decimals = 10,
+                    Callback = function(Value)
+                        ESP.settings.lootRenderDistance = Value
+                    end
+                })
+            end
+        end
+    end
+
+    do
+        local MovementSubPage = MiscPage:SubPage({Name = "Movement", Columns = 2})
+        local ExploitsSubPage = MiscPage:SubPage({Name = "World & Exploits", Columns = 2})
+
+        do
+            local MovementSection = MovementSubPage:Section({Name = "Movement & Speedhack", Side = 1}) do
+                MovementSection:Toggle({
+                    Name = "Enable Speedhack",
+                    Flag = "MvEnabled",
+                    Default = false,
+                    Callback = function(Value)
+                        movement.enabled = Value
+                    end
+                })
+
+                MovementSection:Toggle({
+                    Name = "Enable BunnyHop (C + Shift)",
+                    Flag = "MvBhopEnabled",
+                    Default = false,
+                    Callback = function(Value)
+                        movement.bhop_enabled = Value
+                    end
+                })
+
+                MovementSection:Slider({
+                    Name = "Speed Limit",
+                    Flag = "MvSpeedLimit",
+                    Min = 16,
+                    Max = 120,
+                    Default = 50,
+                    Suffix = " studs/s",
+                    Callback = function(Value)
+                        movement.speed = Value
+                    end
+                })
+
+                MovementSection:Slider({
+                    Name = "Bhop Jump Height",
+                    Flag = "MvBhopHeight",
+                    Min = 5,
+                    Max = 35,
+                    Default = 10,
+                    Suffix = " studs",
+                    Callback = function(Value)
+                        movement.bhop_height = Value
+                    end
+                })
+
+                MovementSection:Slider({
+                    Name = "Bhop Max Height Limit",
+                    Flag = "MvBhopMaxHeight",
+                    Min = 5,
+                    Max = 50,
+                    Default = 15,
+                    Suffix = " studs",
+                    Callback = function(Value)
+                        movement.bhop_max_height = Value
+                    end
+                })
+
+                MovementSection:Slider({
+                    Name = "Bhop Jump Duration",
+                    Flag = "MvBhopDuration",
+                    Min = 0.1,
+                    Max = 1.0,
+                    Default = 0.3,
+                    Decimals = 0.05,
+                    Suffix = "s",
+                    Callback = function(Value)
+                        movement.bhop_duration = Value
+                    end
+                })
+
+                MovementSection:Toggle({
+                    Name = "Enable Force Sprint",
+                    Flag = "MvForceSprint",
+                    Default = false,
+                    Callback = function(Value)
+                        movement.forcesprint = Value
+                    end
+                })
+            end
+        end
+
+        do
+            local SkyboxSection = ExploitsSubPage:Section({Name = "Skybox Changer", Side = 1}) do
+                SkyboxSection:Toggle({
+                    Name = "Enable Skybox Changer",
+                    Flag = "SkyboxEnabled",
+                    Default = false,
+                    Callback = function(Value)
+                        SkyboxSettings.Enabled = Value
+                        UpdateSkyboxState()
+                    end
+                })
+
+                SkyboxSection:Dropdown({
+                    Name = "Select Custom Skybox",
+                    Flag = "SkyboxSelect",
+                    Items = {"Night", "Nebula Space", "Rainy Sky", "Cosmic Stars", "Red Clouds"},
+                    Default = "Night",
+                    Multi = false,
+                    Callback = function(Value)
+                        SkyboxSettings.Selected = Value
+                        if SkyboxSettings.Enabled then
+                            UpdateSkyboxState()
+                        end
+                    end
+                })
+            end
+
+            local EnvironmentSection = ExploitsSubPage:Section({Name = "World Changer", Side = 1}) do
+                local EnvToggle = EnvironmentSection:Toggle({
+                    Name = "Light Overrides",
+                    Flag = "StealthEnvEnabled",
+                    Default = false,
+                    Callback = function(Value)
+                        StealthLighting.Enabled = Value
+                        UpdateStealthLighting()
+                    end
+                })
+                
+                EnvToggle:Colorpicker({
+                    Name = "Custom Ambient Filter",
+                    Flag = "StealthAmbientCol",
+                    Default = Color3.fromRGB(255, 255, 255),
+                    Callback = function(v)
+                        StealthLighting.Ambient = v
+                        if StealthLighting.Enabled then UpdateStealthLighting() end
+                    end
+                })
+
+                EnvironmentSection:Slider({
+                    Name = "Custom Brightness",
+                    Flag = "StealthBrightnessVal",
+                    Min = -0.5,
+                    Max = 1.0,
+                    Default = 0.0,
+                    Decimals = 0.02,
+                    Callback = function(Value)
+                        StealthLighting.Brightness = Value
+                        if StealthLighting.Enabled then UpdateStealthLighting() end
+                    end
+                })
+
+                EnvironmentSection:Slider({
+                    Name = "Custom Contrast",
+                    Flag = "StealthContrastVal",
+                    Min = -0.5,
+                    Max = 1.0,
+                    Default = 0.0,
+                    Decimals = 0.02,
+                    Callback = function(Value)
+                        StealthLighting.Contrast = Value
+                        if StealthLighting.Enabled then UpdateStealthLighting() end
+                    end
+                })
+
+                EnvironmentSection:Slider({
+                    Name = "Custom Saturation",
+                    Flag = "StealthSaturationVal",
+                    Min = -1.0,
+                    Max = 2.0,
+                    Default = 0.0,
+                    Decimals = 0.05,
+                    Callback = function(Value)
+                        StealthLighting.Saturation = Value
+                        if StealthLighting.Enabled then UpdateStealthLighting() end
+                    end
+                })
+            end
+
+            local FreecamXraySection = ExploitsSubPage:Section({Name = "Freecam & Base X-Ray", Side = 2}) do
+                local FreecamToggleInstance
+                FreecamToggleInstance = FreecamXraySection:Toggle({
+                    Name = "Enable Freecam",
+                    Flag = "FreecamEnabledToggle",
+                    Default = false,
+                    Callback = function(Value)
+                        FreecamSettings.Enabled = Value
+                        toggleFreecam()
+                    end
+                })
+                
+                FreecamToggleInstance:Keybind({
+                    Default = Enum.KeyCode.F3,
+                    Flag = "FreecamKeybind",
+                    Mode = "Toggle",
+                    Callback = function(Value)
+                        if FreecamToggleInstance then
+                            FreecamToggleInstance:Set(Value)
+                        end
+                    end
+                })
+
+                FreecamXraySection:Slider({
+                    Name = "Fly Speed",
+                    Flag = "FreecamSpeedSlider",
+                    Min = 1,
+                    Max = 15,
+                    Default = 2,
+                    Suffix = "x multiplier",
+                    Decimals = 0.1,
+                    Callback = function(Value)
+                        FreecamSettings.Speed = Value
+                    end
+                })
+
+                FreecamXraySection:Slider({
+                    Name = "Mouse Sensitivity",
+                    Flag = "FreecamSensitivitySlider",
+                    Min = 0.1,
+                    Max = 5.0,
+                    Default = 1.0,
+                    Decimals = 0.05,
+                    Callback = function(Value)
+                        FreecamSettings.Sensitivity = Value
+                    end
+                })
+
+                FreecamXraySection:Slider({
+                    Name = "Sprint Multiplier (Shift)",
+                    Flag = "FreecamSprintSlider",
+                    Min = 1.1,
+                    Max = 5.0,
+                    Default = 2.5,
+                    Decimals = 0.1,
+                    Callback = function(Value)
+                        FreecamSettings.SprintMultiplier = Value
+                    end
+                })
+
+                local XrayToggleInstance
+                XrayToggleInstance = FreecamXraySection:Toggle({
+                    Name = "Enable Base X-Ray",
+                    Flag = "BaseXrayEnabled",
+                    Default = false,
+                    Callback = function(Value)
+                        XraySettings.Enabled = Value
+                        UpdateXrayState()
+                    end
+                })
+
+                XrayToggleInstance:Keybind({
+                    Default = Enum.KeyCode.V,
+                    Flag = "XrayKeybind",
+                    Mode = "Toggle",
+                    Callback = function(Value)
+                        if XrayToggleInstance then
+                            XrayToggleInstance:Set(Value)
+                        end
+                    end
+                })
+
+                FreecamXraySection:Slider({
+                    Name = "X-Ray Transparency",
+                    Flag = "XrayTransparencySlider",
+                    Min = 0,
+                    Max = 1,
+                    Default = 0.75,
+                    Decimals = 0.05,
+                    Callback = function(Value)
+                        XraySettings.Transparency = Value
+                        if XraySettings.Enabled then
+                            UpdateXrayState()
+                        end
+                    end
+                })
+            end
+        end
+    end
+
+    do
+        local Playerlist = PlayersPage:Playerlist({
+            Callback = function(...)
+                local Args = { ... }
+                table.foreach(Args, print)
+            end
+        })
+    end
+end
+
+Library:Notification("Solyanka.cc", "Loaded successfully! Executed in " .. string.format("%.4f", os.clock() - LoadTick) .. " seconds.", 5)
+
+if getgenv then
+    pcall(function()
+        getgenv().Library = Library
+    end)
+end
+
+return Library
