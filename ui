@@ -110,9 +110,9 @@ local Library do
         FadeSpeed = 0.2,
 
         Folders = {
-            Directory = "Solyanka.cc",
-            Configs = "Solyanka.cc/"config,
-            Assets = "Solyanka.cc/Assets",
+            Directory = "Tigra.cat",
+            Configs = "Tigra.cat/" .. Config,
+            Assets = "Tigra.cat/Assets",
         },
 
         Images = {
