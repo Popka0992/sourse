@@ -111,7 +111,7 @@ local Library do
 
         Folders = {
             Directory = "Tigra.cat",
-            Configs = "Tigra.cat/" .. Config,
+            Configs = "Tigra.cat/Config",
             Assets = "Tigra.cat/Assets",
         },
 
