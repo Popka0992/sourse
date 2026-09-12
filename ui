@@ -111,7 +111,7 @@ local Library do
 
         Folders = {
             Directory = "Solyanka.cc",
-            Configs = "Solyanka.cc/" .. game.GameId,
+            Configs = "Solyanka.cc/"config,
             Assets = "Solyanka.cc/Assets",
         },
 
